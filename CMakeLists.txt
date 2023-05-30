@@ -1,26 +1,112 @@
-cmake_minimum_required(VERSION 3.8)
-project(bottlenose)
+##############################################################################
+#  Copyright 2023 Labforge Inc.                                              #
+#                                                                            #
+# Licensed under the Apache License, Version 2.0 (the "License");            #
+# you may not use this project except in compliance with the License.        #
+# You may obtain a copy of the License at                                    #
+#                                                                            #
+#     http://www.apache.org/licenses/LICENSE-2.0                             #
+#                                                                            #
+# Unless required by applicable law or agreed to in writing, software        #
+# distributed under the License is distributed on an "AS IS" BASIS,          #
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   #
+# See the License for the specific language governing permissions and        #
+# limitations under the License.                                             #
+##############################################################################
+cmake_minimum_required(VERSION 3.5.0)
+
+project(bottlenose_camera_driver)
+
+# Default to C++14
+if(NOT CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 14)
+endif()
+
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# find dependencies
+
 find_package(ament_cmake REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(camera_info_manager REQUIRED)
+find_package(image_transport REQUIRED)
+find_package(camera_calibration_parsers REQUIRED)
+#find_package(ebus_sdk REQUIRED)
+find_package(OpenCV 4 REQUIRED)
+
+add_library(bottlenose_camera_driver SHARED
+        src/bottlenose_camera_driver.cpp)
+target_compile_definitions(bottlenose_camera_driver
+  PRIVATE "COMPOSITION_BUILDING_DLL")
+target_include_directories(bottlenose_camera_driver
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+
+ament_target_dependencies(bottlenose_camera_driver
+    "rclcpp"
+    "rclcpp_components"
+    "sensor_msgs"
+    "std_msgs"
+    "camera_info_manager"
+    "image_transport"
+    "camera_calibration_parsers"
+    #"ebus_sdk",
+    "OpenCV"
+)
+
+rclcpp_components_register_nodes(bottlenose_camera_driver "bottlenose_camera_driver::CameraDriver")
+set(node_plugins "${node_plugins}bottlenose_camera_driver::CameraDriver;$<TARGET_FILE:bottlenose_camera_driver>\n")
+
+add_executable(bottlenose_camera_driver_node
+        src/bottlenose_camera_driver_node.cpp
+)
+
+target_link_libraries(bottlenose_camera_driver_node
+  bottlenose_camera_driver
+)
+
+ament_target_dependencies(bottlenose_camera_driver_node
+  "rclcpp"
+)
+
+install(TARGETS
+  bottlenose_camera_driver
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+
+install(TARGETS
+  bottlenose_camera_driver_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+# Install launch files.
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
+# Install config files
+install(DIRECTORY
+  config
+  DESTINATION share/${PROJECT_NAME}
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
-  # comment the line when a copyright and license is added to all source files
   set(ament_cmake_copyright_FOUND TRUE)
-  # the following line skips cpplint (only works in a git repo)
-  # comment the line when this package is in a git repo and when
-  # a copyright and license is added to all source files
-  set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
+
+  find_package(ament_cmake_gtest REQUIRED)
+  #add_subdirectory(test)
 endif()
 
 ament_package()
