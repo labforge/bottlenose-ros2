@@ -27,7 +27,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/eBusConfig.cmake")
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
@@ -36,7 +36,6 @@ find_package(sensor_msgs REQUIRED)
 find_package(camera_info_manager REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(camera_calibration_parsers REQUIRED)
-#find_package(ebus_sdk REQUIRED)
 find_package(OpenCV 4 REQUIRED)
 
 add_library(bottlenose_camera_driver SHARED
@@ -46,7 +45,9 @@ target_compile_definitions(bottlenose_camera_driver
 target_include_directories(bottlenose_camera_driver
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
+    $<INSTALL_INTERFACE:include>
+    $eBUS_INCLUDE_DIRS)
+target_link_libraries(bottlenose_camera_driver ${eBUS_LIBRARIES})
 
 ament_target_dependencies(bottlenose_camera_driver
     "rclcpp"

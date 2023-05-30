@@ -36,15 +36,12 @@
 #include "opencv2/highgui/highgui.hpp"
 #include <opencv2/imgproc.hpp>
 
-namespace bottlenose_camera_driver
-{
-
-class CameraDriver : public rclcpp::Node {
-public:
+namespace bottlenose_camera_driver {
+  class CameraDriver : public rclcpp::Node {
+  public:
     explicit CameraDriver(const rclcpp::NodeOptions&);
     ~CameraDriver() {};
-        
-private:
+  private:
     rclcpp::TimerBase::SharedPtr timer_;
     cv::Mat frame;
     cv::Mat flipped_frame;
@@ -59,17 +56,11 @@ private:
     int camera_id;
 
     std::chrono::steady_clock::time_point last_frame_;
-
     std::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_manager_;
     image_transport::CameraPublisher camera_info_pub_;
-    
     std::shared_ptr<sensor_msgs::msg::Image> image_msg_;
-    
     std::shared_ptr<sensor_msgs::msg::Image> ConvertFrameToMessage(cv::Mat & frame);
-    
     void ImageCallback();
-    
-
 };
 } // namespace bottlenose_camera_driver
 #endif //__BOTTLENOSE_CAMERA_DRIVER_HPP__
