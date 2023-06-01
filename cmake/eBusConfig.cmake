@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and        #
 # limitations under the License.                                             #
 ##############################################################################
-set(eBUS_INCLUDE_DIRS
+include_directories(
         /opt/pleora/ebus_sdk/Ubuntu-22.04-x86_64/include/
         /opt/pleora/ebus_sdk/Ubuntu-20.04-x86_64/include/
         /opt/pleora/ebus_sdk/Ubuntu-18.04-x86_64/include/)
@@ -55,3 +55,4 @@ foreach (_libname IN LISTS _eBUS_LIB_LIST)
     list(APPEND eBUS_LIBRARIES ${${_libname}})
 endforeach()
 message("${eBUS_LIBRARIES}")
+message("${eBUS_INCLUDE_DIRS}")

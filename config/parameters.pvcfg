@@ -1,0 +1,301 @@
+<?xml version="1.0"?>
+<puregevpersistencefile version="1.0">
+  <context name="ebusplayerconfig">1</context>
+  <propertylist name="communicationbrowser" version="1.0">
+    <parameter name="Visibility">Beginner</parameter>
+    <parameter name="Names">FeatureNames</parameter>
+    <parameter name="View">Tree</parameter>
+    <parameter name="Refresh">AutoRefresh</parameter>
+  </propertylist>
+  <propertylist name="devicebrowser" version="1.0">
+    <parameter name="Visibility">Beginner</parameter>
+    <parameter name="Names">FeatureNames</parameter>
+    <parameter name="View">Tree</parameter>
+    <parameter name="Refresh">AutoRefresh</parameter>
+  </propertylist>
+  <propertylist name="streambrowser" version="1.0">
+    <parameter name="Visibility">Beginner</parameter>
+    <parameter name="Names">FeatureNames</parameter>
+    <parameter name="View">Tree</parameter>
+    <parameter name="Refresh">AutoRefresh</parameter>
+  </propertylist>
+  <propertylist name="defaultcommu3vbrowser" version="1.0">
+    <parameter name="Visibility">Beginner</parameter>
+    <parameter name="Names">FeatureNames</parameter>
+    <parameter name="View">Tree</parameter>
+    <parameter name="Refresh">AutoRefresh</parameter>
+  </propertylist>
+  <propertylist name="defaultcommgevbrowser" version="1.0">
+    <parameter name="Visibility">Beginner</parameter>
+    <parameter name="Names">FeatureNames</parameter>
+    <parameter name="View">Tree</parameter>
+    <parameter name="Refresh">AutoRefresh</parameter>
+  </propertylist>
+  <genparameterarray name="gevcommunication" version="1.0">
+    <parameter name="PreferredTransport">UDP</parameter>
+    <parameter name="AnswerTimeout">1000</parameter>
+    <parameter name="CommandRetryCount">3</parameter>
+    <parameter name="DefaultMCTT">400</parameter>
+    <parameter name="DefaultMCRC">3</parameter>
+    <parameter name="ReadMemPacketSize">552</parameter>
+    <parameter name="WriteMemPacketSize">552</parameter>
+    <parameter name="ForcedCommandPortEnabled">0</parameter>
+    <parameter name="ForcedMessagingPortEnabled">0</parameter>
+    <parameter name="HeartbeatInterval">1500</parameter>
+    <parameter name="DefaultHeartbeatTimeout">5000</parameter>
+    <parameter name="DisconnectOnAnyTimeout">0</parameter>
+    <parameter name="AutoNegotiation">1</parameter>
+    <parameter name="DeviceGenICamXMLLocation">Default</parameter>
+    <parameter name="UseManifests">0</parameter>
+    <parameter name="LinkRecoveryEnabled">0</parameter>
+  </genparameterarray>
+  <genparameterarray name="u3vcommunication" version="1.0">
+    <parameter name="HeartbeatInterval">1000</parameter>
+    <parameter name="SICustomPayloadTransferSize">0</parameter>
+    <parameter name="DeviceGenICamXMLLocation">Default</parameter>
+    <parameter name="LinkRecoveryEnabled">0</parameter>
+  </genparameterarray>
+  <context name="setupversion">1.0.0.0</context>
+  <context name="setuprole">ctrldata</context>
+  <context name="setupdestination">unicastauto</context>
+  <context name="setupunicastspecificport">0</context>
+  <context name="setupdefaultchannel">0</context>
+  <context name="setupunicastip">0.0.0.0</context>
+  <context name="setupunicastport">0</context>
+  <context name="setupmulticastip">239.192.1.1</context>
+  <context name="defaultchannel">1042</context>
+  <context name="filteringdlgversion">1.0.0.0</context>
+  <context name="filterrgbenabled">false</context>
+  <context name="redgain">1.00136</context>
+  <context name="greengain">1.00136</context>
+  <context name="bluegain">1.00136</context>
+  <context name="redoffset">0</context>
+  <context name="greenoffset">0</context>
+  <context name="blueoffset">0</context>
+  <context name="bayerfiltering">simple</context>
+  <context name="histogramversion">1.0.0.0</context>
+  <context name="histogramenabled">false</context>
+  <context name="histogramdarkthreshold">0</context>
+  <context name="histogramlightthreshold">255</context>
+  <context name="saveenabled">0</context>
+  <context name="oneoutof">10</context>
+  <context name="maxrate">100</context>
+  <context name="averagethroughput">1</context>
+  <context name="savethrottleoption">1</context>
+  <context name="savepath"/>
+  <context name="saveformat">bmp</context>
+  <context name="logbufferversion">1.0.0.0</context>
+  <context name="loggenicamenabled">true</context>
+  <context name="logeventsenabled">false</context>
+  <context name="logbuffererrorenabled">true</context>
+  <context name="logbufferallenabled">false</context>
+  <context name="chunkenabled">false</context>
+  <context name="logfilename">/home/treideme/Desktop/EventMonitor.txt</context>
+  <context name="logwritetofileenabled">false</context>
+  <context name="logserialcomenabled">false</context>
+  <context name="logsinkenabled">false</context>
+  <context name="bufferoptionsdlgversion">1.0.0.0</context>
+  <context name="streamingbuffercount">16</context>
+  <context name="streamingdefaultbuffersize">4147200</context>
+  <context name="streamingautoresize">1</context>
+  <propertylist name="displayoptions" version="1.0">
+    <parameter name="vsyncenabled">0</parameter>
+    <parameter name="keeppartialimagesenabled">0</parameter>
+    <parameter name="displaychunkdata">0</parameter>
+    <parameter name="targetframerate">30</parameter>
+    <parameter name="deinterlacing">deinterlacingweavinghalf</parameter>
+  </propertylist>
+  <device name="" version="1.0">
+    <mac>8c:1f:64:d0:e0:0c</mac>
+    <accesstype>control</accesstype>
+    <communication>
+      <parameter name="AnswerTimeout">1000</parameter>
+      <parameter name="CommandRetryCount">3</parameter>
+      <parameter name="ReadMemPacketSize">552</parameter>
+      <parameter name="WriteMemPacketSize">552</parameter>
+      <parameter name="ForcedCommandPortEnabled">0</parameter>
+      <parameter name="ForcedMessagingPortEnabled">0</parameter>
+      <parameter name="HeartbeatInterval">1500</parameter>
+      <parameter name="DisconnectOnAnyTimeout">0</parameter>
+      <parameter name="AutoNegotiation">1</parameter>
+      <parameter name="DeviceGenICamXMLLocation">Default</parameter>
+      <parameter name="UseManifests">0</parameter>
+      <parameter name="LinkRecoveryEnabled">0</parameter>
+    </communication>
+    <device>
+      <parameter name="DeviceStreamChannelPacketSize[DeviceStreamChannelSelector:0]">8976</parameter>
+      <parameter name="Width[SourceSelector:Source0]">1920</parameter>
+      <parameter name="Height[SourceSelector:Source0]">1440</parameter>
+      <parameter name="OffsetX[SourceSelector:Source0]">0</parameter>
+      <parameter name="OffsetY[SourceSelector:Source0]">0</parameter>
+      <parameter name="PixelFormat[SourceSelector:Source0]">YUV422_8</parameter>
+      <parameter name="AcquisitionMode[SourceSelector:Source0]">Continuous</parameter>
+      <parameter name="AcquisitionFrameCount[SourceSelector:Source0]">255</parameter>
+      <parameter name="ChunkModeActive[SourceSelector:Source0]">0</parameter>
+      <parameter name="exposure">18.161</parameter>
+      <parameter name="gain">1</parameter>
+      <parameter name="gamma">2.2</parameter>
+      <parameter name="gammaBlackCorrect">256</parameter>
+      <parameter name="interval">18.1734</parameter>
+      <parameter name="output">LeftSensor</parameter>
+      <parameter name="EnableUpdate">0</parameter>
+      <parameter name="UpdateStatus">Off</parameter>
+      <parameter name="EnableWeightsUpdate">0</parameter>
+      <parameter name="WeightsStatus">Not Loaded</parameter>
+      <parameter name="DNNConfidence">0.2</parameter>
+      <parameter name="DNNEnable">1</parameter>
+      <parameter name="DNNMaxDetections">100</parameter>
+      <parameter name="DNNNonMaxSuppression">0.45</parameter>
+      <parameter name="DNNOutputLabels">1</parameter>
+      <parameter name="DNNTopK">1</parameter>
+      <parameter name="kHeight">2160</parameter>
+      <parameter name="kWidth">3840</parameter>
+      <parameter name="BlockHeight">3</parameter>
+      <parameter name="BlockWidth">3</parameter>
+      <parameter name="Compression">Off</parameter>
+      <parameter name="CostPath">Direction4</parameter>
+      <parameter name="Costing">Off</parameter>
+      <parameter name="Crosscheck">Off</parameter>
+      <parameter name="HoleFilling">None</parameter>
+      <parameter name="MinimumDisparity">0</parameter>
+      <parameter name="NumberDisparity">128</parameter>
+      <parameter name="Penalty1">16</parameter>
+      <parameter name="Penalty2">128</parameter>
+      <parameter name="SubPixel">PolygonLine</parameter>
+      <parameter name="Threshold">0</parameter>
+      <parameter name="Uniqueness">90</parameter>
+      <parameter name="VSearch">1</parameter>
+      <parameter name="GevDiscoveryAckDelay">0</parameter>
+      <parameter name="GevGVSPExtendedIDMode">On</parameter>
+      <parameter name="GevMCTT">400</parameter>
+      <parameter name="GevMCRC">3</parameter>
+      <parameter name="GevSCPD[GevStreamChannelSelector:0]">0</parameter>
+      <parameter name="CCMColorProfile">IndoorWarmLightCurtainOpen</parameter>
+      <parameter name="Interpolation">Bilinear</parameter>
+      <parameter name="Rectification">0</parameter>
+      <parameter name="Undistortion">0</parameter>
+      <parameter name="blackBlue">256</parameter>
+      <parameter name="blackGB">256</parameter>
+      <parameter name="blackGR">256</parameter>
+      <parameter name="blackGainBlue">0.9375</parameter>
+      <parameter name="blackGainGB">0.9375</parameter>
+      <parameter name="blackGainGR">0.9375</parameter>
+      <parameter name="blackGainRed">0.9375</parameter>
+      <parameter name="blackRed">256</parameter>
+      <parameter name="brightness">-15</parameter>
+      <parameter name="coefCB">36984</parameter>
+      <parameter name="coefCR">46745</parameter>
+      <parameter name="colorLevelAdjustment0Enable">0</parameter>
+      <parameter name="colorNoiseReductionEnable">0</parameter>
+      <parameter name="coringSuppression0Enable">0</parameter>
+      <parameter name="edgeEnhancement0Enable">0</parameter>
+      <parameter name="edgeSupression0Enable">0</parameter>
+      <parameter name="linearContrast">136</parameter>
+      <parameter name="luminanceNoiseReduction0Enable">0</parameter>
+      <parameter name="nonLinearContrast0Enable">0</parameter>
+      <parameter name="uvSuppression0Enable">0</parameter>
+      <parameter name="dgainBlue">1024</parameter>
+      <parameter name="dgainGB">1024</parameter>
+      <parameter name="dgainGR">1024</parameter>
+      <parameter name="dgainRed">1024</parameter>
+      <parameter name="rcnr0Image">high</parameter>
+      <parameter name="rcnr1Enable">0</parameter>
+      <parameter name="rcnrA1lDarkAG0">4</parameter>
+      <parameter name="rcnrA1lDarkAG1">15</parameter>
+      <parameter name="rcnrA1lDarkAG2">15</parameter>
+      <parameter name="rcnrA1lRatioAG0">4</parameter>
+      <parameter name="rcnrA1lRatioAG1">15</parameter>
+      <parameter name="rcnrA1lRatioAG2">15</parameter>
+      <parameter name="rcnrAnfBlendAG0">1</parameter>
+      <parameter name="rcnrAnfBlendAG1">2</parameter>
+      <parameter name="rcnrAnfBlendAG2">2</parameter>
+      <parameter name="rcnrClipGainBlue">3</parameter>
+      <parameter name="rcnrClipGainGreen">2</parameter>
+      <parameter name="rcnrClipGainRed">3</parameter>
+      <parameter name="rcnrDarkAG0">0</parameter>
+      <parameter name="rcnrDarkAG1">0</parameter>
+      <parameter name="rcnrDarkAG2">0</parameter>
+      <parameter name="rcnrGnrEnable">0</parameter>
+      <parameter name="rcnrGnrRatio">0</parameter>
+      <parameter name="rcnrGnrWideEnable">0</parameter>
+      <parameter name="rcnrHryType">low</parameter>
+      <parameter name="rcnrInfZeroClip">0</parameter>
+      <parameter name="rcnrLpfThreshold">8</parameter>
+      <parameter name="rcnrMergeBlack">32</parameter>
+      <parameter name="rcnrMergeD2BlendAG0">0</parameter>
+      <parameter name="rcnrMergeD2BlendAG1">0</parameter>
+      <parameter name="rcnrMergeD2BlendAG2">0</parameter>
+      <parameter name="rcnrMergeHBlendAG0">1</parameter>
+      <parameter name="rcnrMergeHBlendAG1">2</parameter>
+      <parameter name="rcnrMergeHBlendAG2">2</parameter>
+      <parameter name="rcnrMergeMinDiv">4</parameter>
+      <parameter name="rcnrRatioAG0">16</parameter>
+      <parameter name="rcnrRatioAG1">31</parameter>
+      <parameter name="rcnrRatioAG2">31</parameter>
+      <parameter name="wbBlue">1</parameter>
+      <parameter name="wbGreen">1</parameter>
+      <parameter name="wbRed">1</parameter>
+      <parameter name="cx0">1928.27</parameter>
+      <parameter name="cy0">1089.25</parameter>
+      <parameter name="fx0">1199.58</parameter>
+      <parameter name="fy0">1199.58</parameter>
+      <parameter name="k10">-0.143999</parameter>
+      <parameter name="k20">0.0133283</parameter>
+      <parameter name="k30">0</parameter>
+      <parameter name="p10">0</parameter>
+      <parameter name="p20">0</parameter>
+      <parameter name="rx0">0</parameter>
+      <parameter name="ry0">0</parameter>
+      <parameter name="rz0">0</parameter>
+      <parameter name="tx0">0</parameter>
+      <parameter name="ty0">0</parameter>
+      <parameter name="tz0">0</parameter>
+      <parameter name="cx1">2124.38</parameter>
+      <parameter name="cy1">1014.13</parameter>
+      <parameter name="fx1">1208.4</parameter>
+      <parameter name="fy1">1208.4</parameter>
+      <parameter name="k11">-0.153709</parameter>
+      <parameter name="k21">0.0161817</parameter>
+      <parameter name="k31">0</parameter>
+      <parameter name="p11">0</parameter>
+      <parameter name="p21">0</parameter>
+      <parameter name="rx1">-0.00144841</parameter>
+      <parameter name="ry1">-0.110814</parameter>
+      <parameter name="rz1">0.00187157</parameter>
+      <parameter name="tx1">0.131177</parameter>
+      <parameter name="ty1">0.000534848</parameter>
+      <parameter name="tz1">0.0167412</parameter>
+      <parameter name="AKAZELength">120-Bits</parameter>
+      <parameter name="AKAZEWindow">20x20-Window</parameter>
+      <parameter name="KPCornerType">Fast9n</parameter>
+      <parameter name="KPMaxNumber">1000</parameter>
+      <parameter name="KPThreshold">100</parameter>
+      <parameter name="KPUseNMS">1</parameter>
+    </device>
+  </device>
+  <context name="activesource">0</context>
+  <stream name="" version="1.0">
+    <mac>8c:1f:64:d0:e0:0c</mac>
+    <channel>0</channel>
+    <parameters>
+      <parameter name="FirstPacketTimeout">0</parameter>
+      <parameter name="InterPacketTimeout">0</parameter>
+      <parameter name="RequestTimeout">1000</parameter>
+      <parameter name="PreemptiveResendTimeout">0</parameter>
+      <parameter name="MaximumPendingResends">512</parameter>
+      <parameter name="RequestMissingPackets">1</parameter>
+      <parameter name="AutoResetOnLackOfResources">1</parameter>
+      <parameter name="MaximumResendRequestRetryByPacket">3</parameter>
+      <parameter name="MaximumResendGroupSize">15</parameter>
+      <parameter name="ResendRequestTimeout">5000</parameter>
+      <parameter name="ResendDelay">0</parameter>
+      <parameter name="ResetOnIdle">200</parameter>
+      <parameter name="EnableMissingPacketsList">0</parameter>
+      <parameter name="OnlyStartOnFirstPacket">1</parameter>
+      <parameter name="ExtraBlockCompletion">Disabled</parameter>
+      <parameter name="TimeoutCountedAsError">0</parameter>
+      <parameter name="AbortCountedAsError">0</parameter>
+      <parameter name="TimestampSourcePreferred">Software</parameter>
+    </parameters>
+  </stream>
+</puregevpersistencefile>

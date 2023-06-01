@@ -14,30 +14,24 @@
  * limitations under the License.                                             *
  ******************************************************************************
 
-@file bottlenose_camera_driver_node.cpp Implementation of Bottlenose Camera Driver
+@file bottlenose_camera_driver.hpp Definition of Bottlenose Camera Driver
 @author Thomas Reidemeister <thomas@labforge.ca>
 */
+#ifndef __BOTTLENOSE_PARAMETERS_HPP__
+#define __BOTTLENOSE_PARAMETERS_HPP__
 
-#include "bottlenose_camera_driver.hpp"
+#include "rclcpp/rclcpp.hpp"
 
-int main(int argc, char * argv[])
-{
+typedef struct {
+  const std::string name;
+  const rclcpp::ParameterValue & default_value;
+} parameter_t;
 
-    // Force flush of the stdout buffer.
-    // This ensures a correct sync of all prints
-    // even when executed simultaneously within a launch file.
-    setvbuf(stdout, NULL, _IONBF, BUFSIZ);
-    
-    rclcpp::init(argc, argv);
-    rclcpp::executors::SingleThreadedExecutor exec;
+const parameter_t bottlenose_parameters[] = {
+  {"frame_id", rclcpp::ParameterValue("camera")},
+  {"height", rclcpp::ParameterValue(480)},
+  {"width", rclcpp::ParameterValue(640)},
+  {"camera_id", rclcpp::ParameterValue(0)}
+};
 
-    rclcpp::NodeOptions options;
-    auto bottlenose_camera_driver = std::make_shared<bottlenose_camera_driver::CameraDriver>(options);
-
-    exec.add_node(bottlenose_camera_driver);
-    
-    exec.spin();
-    
-    rclcpp::shutdown();
-    return 0;
-}
+#endif // __BOTTLENOSE_PARAMETERS_HPP__

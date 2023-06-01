@@ -13,7 +13,8 @@
 # See the License for the specific language governing permissions and        #
 # limitations under the License.                                             #
 ##############################################################################
-cmake_minimum_required(VERSION 3.5.0)
+cmake_minimum_required(VERSION 3.9.0)
+include(GoogleTest)
 
 project(bottlenose_camera_driver)
 
@@ -57,7 +58,6 @@ ament_target_dependencies(bottlenose_camera_driver
     "camera_info_manager"
     "image_transport"
     "camera_calibration_parsers"
-    #"ebus_sdk",
     "OpenCV"
 )
 
@@ -67,10 +67,18 @@ set(node_plugins "${node_plugins}bottlenose_camera_driver::CameraDriver;$<TARGET
 add_executable(bottlenose_camera_driver_node
         src/bottlenose_camera_driver_node.cpp
 )
-
 target_link_libraries(bottlenose_camera_driver_node
-  bottlenose_camera_driver
+        bottlenose_camera_driver
 )
+add_executable(test_integration
+        test/test.cpp
+        )
+target_link_libraries(test_integration gtest gtest_main bottlenose_camera_driver)
+target_include_directories(test_integration
+        PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>)
+#gtest_discover_tests(test_integration)
 
 ament_target_dependencies(bottlenose_camera_driver_node
   "rclcpp"

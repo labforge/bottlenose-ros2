@@ -22,7 +22,9 @@
 #include <memory>
 #include <string>
 
+
 #include "bottlenose_camera_driver.hpp"
+#include "bottlenose_parameters.hpp"
 
 using namespace std::chrono_literals;
 namespace bottlenose_camera_driver
@@ -30,31 +32,26 @@ namespace bottlenose_camera_driver
 
 CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bottlenose_camera_driver", node_options)
 {
+  for(auto &parameter : bottlenose_parameters) {
+    this->declare_parameter(parameter.name, parameter.default_value);
+  }
 
-    frame_id_ = this->declare_parameter("frame_id", "camera");
+  rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_sensor_data;
+  camera_info_pub_ = image_transport::create_camera_publisher(this, "image", custom_qos_profile);
 
-    image_width_ = this->declare_parameter("image_width", 1280);
-    image_height_ = this->declare_parameter("image_height", 720);
-    fps_ = this->declare_parameter("fps", 10.0);
+  cinfo_manager_ = std::make_shared<camera_info_manager::CameraInfoManager>(this);
 
-    camera_id = this->declare_parameter("camera_id", 0);
+  /* get ROS2 config parameter for camera calibration file */
+  auto camera_calibration_file_param_ = this->declare_parameter("camera_calibration_file", "file://config/camera.yaml");
+  cinfo_manager_->loadCameraInfo(camera_calibration_file_param_);
 
-    rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_sensor_data;
-    camera_info_pub_ = image_transport::create_camera_publisher(this, "image", custom_qos_profile);
+  cap.open(camera_id);
+  cap.set(cv::CAP_PROP_FRAME_WIDTH, image_width_);
+  cap.set(cv::CAP_PROP_FRAME_HEIGHT, image_height_);
 
-    cinfo_manager_ = std::make_shared<camera_info_manager::CameraInfoManager>(this);
+  last_frame_ = std::chrono::steady_clock::now();
 
-    /* get ROS2 config parameter for camera calibration file */
-    auto camera_calibration_file_param_ = this->declare_parameter("camera_calibration_file", "file://config/camera.yaml");
-    cinfo_manager_->loadCameraInfo(camera_calibration_file_param_);
-
-    cap.open(camera_id);
-    cap.set(cv::CAP_PROP_FRAME_WIDTH, image_width_);
-    cap.set(cv::CAP_PROP_FRAME_HEIGHT, image_height_);
-
-    last_frame_ = std::chrono::steady_clock::now();
-
-    timer_ = this->create_wall_timer(1ms, std::bind(&CameraDriver::ImageCallback, this));
+  timer_ = this->create_wall_timer(1ms, std::bind(&CameraDriver::ImageCallback, this));
 }
 
 std::shared_ptr<sensor_msgs::msg::Image> CameraDriver::ConvertFrameToMessage(cv::Mat &frame)
@@ -106,8 +103,7 @@ void CameraDriver::ImageCallback()
 
     auto now = std::chrono::steady_clock::now();
 
-    if (!frame.empty() &&
-        std::chrono::duration_cast<std::chrono::milliseconds>(now - last_frame_).count() > 1/fps_*1000)
+    if (!frame.empty() && (now - last_frame_) > 1ms)
     {
         last_frame_ = now;
 
