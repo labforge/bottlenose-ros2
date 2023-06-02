@@ -35,14 +35,34 @@
 
 #include "opencv2/highgui/highgui.hpp"
 #include <opencv2/imgproc.hpp>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <PvBuffer.h>
 
 namespace bottlenose_camera_driver {
   class CameraDriver : public rclcpp::Node {
   public:
     explicit CameraDriver(const rclcpp::NodeOptions&);
-    ~CameraDriver() {};
+    ~CameraDriver();
   private:
+
+    /**
+     * @brief Management thread for interacting with GEV stack. GEV stack, not ROS drives timing.
+     * @param mac_address Mac address to connect to
+     */
+    void management_thread(const char*mac_address);
+    void status_callback();       ///< ROS2 status callback and orchestration polled from a timer
+
+    std::mutex m_mutex;           ///< Mutex for management thread <-> ROS interaction
+    std::condition_variable m_cv; ///< Condition variable for management thread <-> ROS interaction
+    std::thread m_thread;         ///< Management thread handle
+    bool m_terminate;             ///< Flag to terminate management thread
+
+    std::list<PvBuffer *> m_buffers; ///< List of buffers for GEV stack
+
     rclcpp::TimerBase::SharedPtr timer_;
+    std::thread m_aquisition_thread;
     cv::Mat frame;
     cv::Mat flipped_frame;
     cv::VideoCapture cap;
@@ -60,7 +80,6 @@ namespace bottlenose_camera_driver {
     image_transport::CameraPublisher camera_info_pub_;
     std::shared_ptr<sensor_msgs::msg::Image> image_msg_;
     std::shared_ptr<sensor_msgs::msg::Image> ConvertFrameToMessage(cv::Mat & frame);
-    void ImageCallback();
 };
 } // namespace bottlenose_camera_driver
 #endif //__BOTTLENOSE_CAMERA_DRIVER_HPP__

@@ -21,17 +21,48 @@
 #include <chrono>
 #include <memory>
 #include <string>
+#include <cassert>
+#include <cstdlib>
+#include <cstdio>
+#include <filesystem>
 
+#include <iostream>
+#include <list>
+
+#include <PvDevice.h>
+#include <PvDeviceGEV.h>
+#include <PvStream.h>
+#include <PvStreamGEV.h>
+#include <PvSystem.h>
+#include <PvBuffer.h>
+#include <opencv2/opencv.hpp>
 
 #include "bottlenose_camera_driver.hpp"
 #include "bottlenose_parameters.hpp"
 
+#define BUFFER_COUNT ( 16 )
+#define BUFFER_SIZE ( 3840 * 2160 * 3 ) // 4K UHD, YUV422 + ~1 image plane to account for chunk info
+
 using namespace std::chrono_literals;
+using namespace std;
 namespace bottlenose_camera_driver
 {
 
 CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bottlenose_camera_driver", node_options)
 {
+  // Allocate GEV buffers
+  for ( size_t i = 0; i < BUFFER_COUNT; i++ )
+  {
+    // Create new buffer object
+    PvBuffer *buffer = new PvBuffer;
+
+    // Have the new buffer object allocate payload memory
+    buffer->Alloc(BUFFER_SIZE );
+
+    // Add to external list - used to eventually release the buffers
+    m_buffers.push_back(buffer );
+  }
+  m_terminate = false;
   for(auto &parameter : bottlenose_parameters) {
     this->declare_parameter(parameter.name, parameter.default_value);
   }
@@ -51,7 +82,20 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bott
 
   last_frame_ = std::chrono::steady_clock::now();
 
-  timer_ = this->create_wall_timer(1ms, std::bind(&CameraDriver::ImageCallback, this));
+  timer_ = this->create_wall_timer(1ms, std::bind(&CameraDriver::status_callback, this));
+}
+
+CameraDriver::~CameraDriver() {
+  m_terminate = true;
+  m_aquisition_thread.join();
+  // Go through the buffer list
+  auto iter = m_buffers.begin();
+  while ( iter != m_buffers.end() )
+  {
+    delete *iter;
+    iter++;
+  }
+  m_buffers.clear();
 }
 
 std::shared_ptr<sensor_msgs::msg::Image> CameraDriver::ConvertFrameToMessage(cv::Mat &frame)
@@ -97,7 +141,7 @@ std::shared_ptr<sensor_msgs::msg::Image> CameraDriver::ConvertFrameToMessage(cv:
     return msg_ptr_;
 }
 
-void CameraDriver::ImageCallback()
+void CameraDriver::status_callback()
 {
     cap >> frame;
 
@@ -135,6 +179,122 @@ void CameraDriver::ImageCallback()
         camera_info_pub_.publish(image_msg_, camera_info_msg_);
     }
 }
+
+void CameraDriver::management_thread(const char*mac_address) {
+  PvSystem sys = PvSystem();
+  const PvDeviceInfo* pDevice;
+  PvResult res = sys.FindDevice(mac_address, &pDevice);
+  if(res.IsFailure()) {
+    // FIXME: Log error
+    return;
+  }
+  cerr << "ML_LOOP: Found device " << pDevice->GetDisplayID().GetAscii() << endl;
+  PvDevice *device = PvDevice::CreateAndConnect( pDevice->GetConnectionID(), &res );
+  if(res.IsFailure() || device == nullptr) {
+    // FIXME: Log error
+    return;
+  }
+  cerr << "ML_LOOP: Connected to device " << pDevice->GetDisplayID().GetAscii() << endl;
+  PvGenInteger *intval = dynamic_cast<PvGenInteger *>( device->GetParameters()->Get("GevSCPSPacketSize"));
+  assert(intval != nullptr);
+  int64_t val;
+  intval->GetValue(val);
+  if(val < 8000) {
+    cerr << "Warning: Configure your NICs MTU to be at least 8K to have reliable image transfer -> overriding to 8K" << endl;
+    // FIXME: terminate
+  }
+  PvStream *stream = PvStream::CreateAndOpen( pDevice->GetConnectionID(), &res );
+  if(res.IsFailure() || stream == nullptr) {
+    // FIXME: Log error
+    device->Disconnect();
+    PvDevice::Free(device);
+    return;
+  }
+  cerr << "ML_LOOP: Connected to stream " << pDevice->GetDisplayID().GetAscii() << endl;
+  PvDeviceGEV* deviceGEV = static_cast<PvDeviceGEV *>( device );
+  PvStreamGEV *streamGEV = static_cast<PvStreamGEV *>( stream );
+  deviceGEV->NegotiatePacketSize();
+  deviceGEV->SetStreamDestination( streamGEV->GetLocalIPAddress(), streamGEV->GetLocalPort() );
+
+  // Stream tweaks, see https://supportcenter.pleora.com/s/article/Recommended-eBUS-Player-Settings-for-Wireless-Connection
+  for (const char*param : {"ResetOnIdle",
+                           "MaximumPendingResends",
+                           "MaximumResendRequestRetryByPacket",
+                           "MaximumResendGroupSize"}) {
+    intval = static_cast<PvGenInteger *>( device->GetParameters()->Get(param));
+    intval->SetValue(0);
+  }
+  intval = static_cast<PvGenInteger *>( device->GetParameters()->Get("ResendRequestTimeout"));
+  intval->SetValue(200);
+  intval = static_cast<PvGenInteger *>( device->GetParameters()->Get("RequestTimeout"));
+  intval->SetValue(10000);
+
+  // Queue buffers
+  auto iter = m_buffers.begin();
+  while (iter != m_buffers.end() )
+  {
+    // FIXME: check result
+    stream->QueueBuffer( *iter );
+    iter++;
+  }
+
+  // Map the GenICam AcquisitionStart and AcquisitionStop commands
+  PvGenCommand *cmdStart = static_cast<PvGenCommand *>( device->GetParameters()->Get("AcquisitionStart") );
+  PvGenCommand *cmdStop = static_cast<PvGenCommand *>( device->GetParameters()->Get("AcquisitionStop") );
+
+  device->StreamEnable();
+  cmdStart->Execute();
+
+  while(!m_terminate) {
+    PvBuffer *buffer = nullptr;
+    PvResult operationResult;
+    res = stream->RetrieveBuffer( &buffer, &operationResult);
+    if(res.IsOK()) {
+      if(operationResult.IsOK()) {
+        switch ( buffer->GetPayloadType() ) {
+          case PvPayloadTypeImage:
+            cout << "  W: " << dec << buffer->GetImage()->GetWidth() << " H: " << buffer->GetImage()->GetHeight() << endl;
+            break;
+
+          case PvPayloadTypeChunkData:
+            cout << " Chunk Data payload type" << " with " << buffer->GetChunkCount() << " chunks" << endl;
+            break;
+
+          case PvPayloadTypeRawData:
+            cout << " Raw Data with " << buffer->GetRawData()->GetPayloadLength() << " bytes" << endl;
+            break;
+
+          case PvPayloadTypeMultiPart:
+            cout << " Multi Part with " << buffer->GetMultiPartContainer()->GetPartCount() << " parts" << endl;
+            break;
+
+          default:
+            cout << " Payload type not supported by this sample" << endl;
+            break;
+        }
+      } else {
+        cerr << "Aq op failed " << operationResult.GetCodeString().GetAscii() << endl;
+      }
+      stream->QueueBuffer( buffer );
+    } else {
+      cerr << "Buffer failed " << res.GetCodeString().GetAscii() << endl;
+    }
+  }
+  cmdStop->Execute();
+  device->StreamDisable();
+  stream->AbortQueuedBuffers();
+  while ( stream->GetQueuedBufferCount() > 0 )
+  {
+    PvBuffer *buffer = nullptr;
+    PvResult operationResult;
+    stream->RetrieveBuffer( &buffer, &operationResult );
+  }
+  stream->Close();
+  PvStream::Free( stream );
+  device->Disconnect();
+  PvDevice::Free( device );
+}
+
 } // namespace bottlenose_camera_driver
 
 #include "rclcpp_components/register_node_macro.hpp"
