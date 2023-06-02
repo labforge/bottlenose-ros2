@@ -32,7 +32,7 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='bottlenose_camera_driver',
-            executable='usb_camera_driver_node',
+            executable='bottlenose_camera_driver_node',
             namespace='/camera',
             parameters=[
             ]

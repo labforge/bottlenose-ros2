@@ -51,7 +51,7 @@ namespace bottlenose_camera_driver {
      * @brief Management thread for interacting with GEV stack. GEV stack, not ROS drives timing.
      * @param mac_address Mac address to connect to
      */
-    void management_thread(const char*mac_address);
+    void management_thread();
     void status_callback();       ///< ROS2 status callback and orchestration polled from a timer
 
     std::mutex m_mutex;           ///< Mutex for management thread <-> ROS interaction
@@ -59,27 +59,16 @@ namespace bottlenose_camera_driver {
     std::thread m_thread;         ///< Management thread handle
     bool m_terminate;             ///< Flag to terminate management thread
 
+    std::string m_mac_address;    ///< Mac address of camera to connect to
+
     std::list<PvBuffer *> m_buffers; ///< List of buffers for GEV stack
 
     rclcpp::TimerBase::SharedPtr timer_;
     std::thread m_aquisition_thread;
-    cv::Mat frame;
-    cv::Mat flipped_frame;
-    cv::VideoCapture cap;
-    
-    bool is_flipped;
 
-    std::string frame_id_;
-    int image_height_;
-    int image_width_;
-    double fps_;
-    int camera_id;
-
-    std::chrono::steady_clock::time_point last_frame_;
     std::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_manager_;
     image_transport::CameraPublisher camera_info_pub_;
     std::shared_ptr<sensor_msgs::msg::Image> image_msg_;
-    std::shared_ptr<sensor_msgs::msg::Image> ConvertFrameToMessage(cv::Mat & frame);
 };
 } // namespace bottlenose_camera_driver
 #endif //__BOTTLENOSE_CAMERA_DRIVER_HPP__
