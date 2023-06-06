@@ -25,6 +25,7 @@
 
 #include <list>
 
+
 #include <PvDevice.h>
 #include <PvDeviceGEV.h>
 #include <PvStream.h>
@@ -111,7 +112,6 @@ void CameraDriver::status_callback() {
   m_mac_address = mac_address;
   done = false;
   m_management_thread = std::thread(&CameraDriver::management_thread, this);
-  RCLCPP_INFO(get_logger(), "Bottlenose started");
 }
 
 std::shared_ptr<sensor_msgs::msg::Image> CameraDriver::convertFrameToMessage(PvBuffer *buffer) {
@@ -202,8 +202,8 @@ void CameraDriver::management_thread() {
     intval = static_cast<PvGenInteger *>( stream->GetParameters()->Get(param));
     intval->SetValue(0);
   }
-//  intval = static_cast<PvGenInteger *>( stream->GetParameters()->Get("ResendRequestTimeout"));
-//  intval->SetValue(200);
+  intval = static_cast<PvGenInteger *>( stream->GetParameters()->Get("ResendRequestTimeout"));
+  intval->SetValue(5000);
 //  intval = static_cast<PvGenInteger *>( stream->GetParameters()->Get("RequestTimeout"));
 //  intval->SetValue(10000);
 
@@ -228,7 +228,12 @@ void CameraDriver::management_thread() {
     PvResult operationResult;
     res = stream->RetrieveBuffer( &buffer, &operationResult);
     if(res.IsOK()) {
-      if(operationResult.IsOK()) {
+      if(operationResult.IsOK() || (get_parameter("keep_partial").as_bool()
+        && ((operationResult.GetCode() == PvResult::Code::TOO_MANY_RESENDS) ||
+           (operationResult.GetCode() == PvResult::Code::RESENDS_FAILURE) ||
+           (operationResult.GetCode() == PvResult::Code::TOO_MANY_CONSECUTIVE_RESENDS) ||
+          (operationResult.GetCode() == PvResult::Code::MISSING_PACKETS) ||
+          (operationResult.GetCode() == PvResult::Code::CORRUPTED_DATA)))) {
         switch ( buffer->GetPayloadType() ) {
           case PvPayloadTypeImage:
             m_image_msg = convertFrameToMessage(buffer);
@@ -259,7 +264,17 @@ void CameraDriver::management_thread() {
             break;
         }
       } else {
-        RCLCPP_WARN_STREAM(get_logger(), "Acquisition operation failed with " << operationResult.GetCodeString().GetAscii());
+        if(operationResult.GetCode() == PvResult::Code::TIMEOUT) {
+          // This usually signifies that the GEV stack died, fall back to complete recovery
+          RCLCPP_ERROR_STREAM(get_logger(),
+                              "Acquisition operation failed with " << operationResult.GetCodeString().GetAscii()
+                                                                   << " reconnecting");
+          break;
+        } else {
+          // Notify retry
+          RCLCPP_WARN_STREAM(get_logger(),
+                             "Acquisition operation failed with " << operationResult.GetCodeString().GetAscii());
+        }
       }
       stream->QueueBuffer( buffer );
     } else {

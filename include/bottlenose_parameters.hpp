@@ -33,6 +33,7 @@ const parameter_t bottlenose_parameters[] = {
   {"width", rclcpp::ParameterValue(640)},
   {"camera_id", rclcpp::ParameterValue(0)},
   {"mac_address", rclcpp::ParameterValue("00:00:00:00:00:00")},
+  {"keep_partial", rclcpp::ParameterValue(false)},
 };
 
 #endif // __BOTTLENOSE_PARAMETERS_HPP__
