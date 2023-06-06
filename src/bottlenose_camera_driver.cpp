@@ -23,7 +23,6 @@
 #include <string>
 #include <cassert>
 
-#include <iostream>
 #include <list>
 
 #include <PvDevice.h>
@@ -97,8 +96,12 @@ void CameraDriver::status_callback() {
     return;
   }
   if(m_management_thread.joinable()) {
-    RCLCPP_INFO_ONCE(get_logger(), "Bottlenose initialised");
-    return;
+    if(!done) {
+      RCLCPP_INFO_ONCE(get_logger(), "Bottlenose initialised");
+      return;
+    } else {
+      m_management_thread.join();
+    }
   }
   auto mac_address = this->get_parameter("mac_address").as_string();
   if(mac_address == "00:00:00:00:00:00") {
@@ -106,6 +109,7 @@ void CameraDriver::status_callback() {
     return;
   }
   m_mac_address = mac_address;
+  done = false;
   m_management_thread = std::thread(&CameraDriver::management_thread, this);
   RCLCPP_INFO(get_logger(), "Bottlenose started");
 }
@@ -161,11 +165,13 @@ void CameraDriver::management_thread() {
   PvResult res = sys.FindDevice(m_mac_address.c_str(), &pDevice);
   if(res.IsFailure()) {
     RCLCPP_ERROR(get_logger(), "Failed to find device %s", m_mac_address.c_str());
+    done = true;
     return;
   }
   PvDevice *device = PvDevice::CreateAndConnect( pDevice->GetConnectionID(), &res );
   if(res.IsFailure() || device == nullptr) {
     RCLCPP_ERROR(get_logger(), "Could not connect to device %s", m_mac_address.c_str());
+    done = true;
     return;
   }
   PvGenInteger *intval = dynamic_cast<PvGenInteger *>( device->GetParameters()->Get("GevSCPSPacketSize"));
@@ -180,6 +186,7 @@ void CameraDriver::management_thread() {
     RCLCPP_ERROR(get_logger(), "Could not open device %s, cause %s", m_mac_address.c_str(), res.GetCodeString().GetAscii());
     device->Disconnect();
     PvDevice::Free(device);
+    done = true;
     return;
   }
   PvDeviceGEV* deviceGEV = static_cast<PvDeviceGEV *>( device );
@@ -272,6 +279,7 @@ void CameraDriver::management_thread() {
   PvStream::Free( stream );
   device->Disconnect();
   PvDevice::Free( device );
+  done = true;
 }
 
 } // namespace bottlenose_camera_driver

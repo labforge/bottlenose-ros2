@@ -51,8 +51,7 @@ namespace bottlenose_camera_driver {
     void management_thread();             ///< Management thread for interacting with GEV stack.
     void status_callback();               ///< ROS2 status callback and orchestration polled from a timer.
 
-    std::mutex m_mutex;                   ///< Mutex for management thread <-> ROS interaction.
-    std::condition_variable m_cv;         ///< Condition variable for management thread <-> ROS interaction.
+    std::atomic<bool> done;               ///< Flag for management thread to terminate.
     std::thread m_thread;                 ///< Management thread handle.
     bool m_terminate;                     ///< Flag to terminate management thread.
 
