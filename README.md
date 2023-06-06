@@ -21,7 +21,7 @@ source install/local_setup.bash
 ## Usage
 
 ```
- ros2 run bottlenose_camera_driver bottlenose_camera_driver_node
+ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p mac_address:="8C:1F:64:D0:E0:0C" --log-level bottlenose_camera_driver:=debug
 ```
 
 Available parameters:

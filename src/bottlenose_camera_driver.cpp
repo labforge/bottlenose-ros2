@@ -92,62 +92,22 @@ CameraDriver::~CameraDriver() {
   m_buffers.clear();
 }
 
-//std::shared_ptr<sensor_msgs::msg::Image> CameraDriver::ConvertFrameToMessage(cv::Mat &frame)
-//{
-//    std_msgs::msg::Header header_;
-//    sensor_msgs::msg::Image ros_image;
-//
-//    // Make sure output in the size the user wants even if it is not native
-//    if(frame.rows != image_width_ || frame.cols != image_height_){
-//        cv::resize(frame, frame, cv::Size(image_width_, image_height_));
-//    }
-//
-//    /* To remove CV-bridge and boost-python3 dependencies, this is pretty much a copy of the toImageMsg method in cv_bridge. */
-//    ros_image.header = header_;
-//    ros_image.height = frame.rows;
-//    ros_image.width = frame.cols;
-//    ros_image.encoding = "bgr8";
-//    /* FIXME c++20 has std::endian */
-//    // ros_image.is_bigendian = (std::endian::native == std::endian::big);
-//    ros_image.is_bigendian = false;
-//    ros_image.step = frame.cols * frame.elemSize();
-//    size_t size = ros_image.step * frame.rows;
-//    ros_image.data.resize(size);
-//
-//    if (frame.isContinuous())
-//    {
-//        memcpy(reinterpret_cast<char *>(&ros_image.data[0]), frame.data, size);
-//    }
-//    else
-//    {
-//        // Copy by row by row
-//        uchar *ros_data_ptr = reinterpret_cast<uchar *>(&ros_image.data[0]);
-//        uchar *cv_data_ptr = frame.data;
-//        for (int i = 0; i < frame.rows; ++i)
-//        {
-//            memcpy(ros_data_ptr, cv_data_ptr, ros_image.step);
-//            ros_data_ptr += ros_image.step;
-//            cv_data_ptr += frame.step;
-//        }
-//    }
-//
-//    auto msg_ptr_ = std::make_shared<sensor_msgs::msg::Image>(ros_image);
-//    return msg_ptr_;
-//}
-
 void CameraDriver::status_callback() {
   if(m_terminate) {
     return;
   }
   if(m_management_thread.joinable()) {
+    RCLCPP_INFO_ONCE(get_logger(), "Bottlenose initialised");
     return;
   }
   auto mac_address = this->get_parameter("mac_address").as_string();
   if(mac_address == "00:00:00:00:00:00") {
+    RCLCPP_INFO_ONCE(get_logger(), "Bottlenose undefined please set mac_address");
     return;
   }
   m_mac_address = mac_address;
   m_management_thread = std::thread(&CameraDriver::management_thread, this);
+  RCLCPP_INFO(get_logger(), "Bottlenose started");
 }
 
 std::shared_ptr<sensor_msgs::msg::Image> CameraDriver::convertFrameToMessage(PvBuffer *buffer) {
@@ -200,13 +160,12 @@ void CameraDriver::management_thread() {
   const PvDeviceInfo* pDevice;
   PvResult res = sys.FindDevice(m_mac_address.c_str(), &pDevice);
   if(res.IsFailure()) {
-    // FIXME: Log error
-    cout << "E1 "<< endl;
+    RCLCPP_ERROR(get_logger(), "Failed to find device %s", m_mac_address.c_str());
     return;
   }
   PvDevice *device = PvDevice::CreateAndConnect( pDevice->GetConnectionID(), &res );
   if(res.IsFailure() || device == nullptr) {
-    // FIXME: Log error
+    RCLCPP_ERROR(get_logger(), "Could not connect to device %s", m_mac_address.c_str());
     return;
   }
   PvGenInteger *intval = dynamic_cast<PvGenInteger *>( device->GetParameters()->Get("GevSCPSPacketSize"));
@@ -214,17 +173,15 @@ void CameraDriver::management_thread() {
   int64_t val;
   intval->GetValue(val);
   if(val < 8000) {
-    cerr << "Warning: Configure your NICs MTU to be at least 8K to have reliable image transfer -> overriding to 8K" << endl;
-    // FIXME: terminate
+    RCLCPP_WARN(get_logger(), "Current MTU is %ld, please set to at least 8K for reliable image transfer", val);
   }
   PvStream *stream = PvStream::CreateAndOpen( pDevice->GetConnectionID(), &res );
   if(res.IsFailure() || stream == nullptr) {
-    // FIXME: Log error
+    RCLCPP_ERROR(get_logger(), "Could not open device %s, cause %s", m_mac_address.c_str(), res.GetCodeString().GetAscii());
     device->Disconnect();
     PvDevice::Free(device);
     return;
   }
-  cerr << "ML_LOOP: Connected to stream " << pDevice->GetDisplayID().GetAscii() << endl;
   PvDeviceGEV* deviceGEV = static_cast<PvDeviceGEV *>( device );
   PvStreamGEV *streamGEV = static_cast<PvStreamGEV *>( stream );
   deviceGEV->NegotiatePacketSize();
@@ -267,10 +224,10 @@ void CameraDriver::management_thread() {
       if(operationResult.IsOK()) {
         switch ( buffer->GetPayloadType() ) {
           case PvPayloadTypeImage:
-            cout << i++ << "  W: " << dec << buffer->GetImage()->GetWidth() << " H: " << buffer->GetImage()->GetHeight() << endl;
             m_image_msg = convertFrameToMessage(buffer);
 
             if(m_image_msg != nullptr) {
+              RCLCPP_DEBUG(get_logger(), "Received Image %i x %i", buffer->GetImage()->GetWidth(), buffer->GetImage()->GetHeight());
               sensor_msgs::msg::CameraInfo::SharedPtr info_msg(
                   new sensor_msgs::msg::CameraInfo(m_cinfo_manager->getCameraInfo()));
               info_msg->header = m_image_msg->header;
@@ -279,27 +236,27 @@ void CameraDriver::management_thread() {
             break;
 
           case PvPayloadTypeChunkData:
-            cout << " Chunk Data payload type" << " with " << buffer->GetChunkCount() << " chunks" << endl;
+            RCLCPP_DEBUG_STREAM(get_logger(), "Chunk Data payload type" << " with " << buffer->GetChunkCount() << " chunks");
             break;
 
           case PvPayloadTypeRawData:
-            cout << " Raw Data with " << buffer->GetRawData()->GetPayloadLength() << " bytes" << endl;
+            RCLCPP_DEBUG_STREAM(get_logger(), "Raw Data with " << buffer->GetRawData()->GetPayloadLength() << " bytes");
             break;
 
           case PvPayloadTypeMultiPart:
-            cout << " Multi Part with " << buffer->GetMultiPartContainer()->GetPartCount() << " parts" << endl;
+            RCLCPP_DEBUG_STREAM(get_logger(), "Multi Part with " << buffer->GetMultiPartContainer()->GetPartCount() << " parts");
             break;
 
           default:
-            cout << " Payload type not supported by this sample" << endl;
+            RCLCPP_DEBUG(get_logger(), "Payload type not supported : 0x%08X", buffer->GetPayloadType());
             break;
         }
       } else {
-        cerr << "Aq op failed " << operationResult.GetCodeString().GetAscii() << endl;
+        RCLCPP_WARN_STREAM(get_logger(), "Acquisition operation failed with " << operationResult.GetCodeString().GetAscii());
       }
       stream->QueueBuffer( buffer );
     } else {
-      cerr << "Buffer failed " << res.GetCodeString().GetAscii() << endl;
+      RCLCPP_WARN_STREAM(get_logger(), "Buffer failed with " << res.GetCodeString().GetAscii());
     }
   }
   cmdStop->Execute();

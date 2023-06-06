@@ -35,7 +35,8 @@ int main(int argc, char * argv[])
     auto bottlenose_camera_driver = std::make_shared<bottlenose_camera_driver::CameraDriver>(options);
 
     exec.add_node(bottlenose_camera_driver);
-    
+
+
     exec.spin();
     
     rclcpp::shutdown();
