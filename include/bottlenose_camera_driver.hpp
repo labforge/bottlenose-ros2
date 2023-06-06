@@ -46,29 +46,26 @@ namespace bottlenose_camera_driver {
     explicit CameraDriver(const rclcpp::NodeOptions&);
     ~CameraDriver();
   private:
+    std::shared_ptr<sensor_msgs::msg::Image> convertFrameToMessage(PvBuffer *buffer);
 
-    /**
-     * @brief Management thread for interacting with GEV stack. GEV stack, not ROS drives timing.
-     * @param mac_address Mac address to connect to
-     */
-    void management_thread();
-    void status_callback();       ///< ROS2 status callback and orchestration polled from a timer
+    void management_thread();             ///< Management thread for interacting with GEV stack.
+    void status_callback();               ///< ROS2 status callback and orchestration polled from a timer.
 
-    std::mutex m_mutex;           ///< Mutex for management thread <-> ROS interaction
-    std::condition_variable m_cv; ///< Condition variable for management thread <-> ROS interaction
-    std::thread m_thread;         ///< Management thread handle
-    bool m_terminate;             ///< Flag to terminate management thread
+    std::mutex m_mutex;                   ///< Mutex for management thread <-> ROS interaction.
+    std::condition_variable m_cv;         ///< Condition variable for management thread <-> ROS interaction.
+    std::thread m_thread;                 ///< Management thread handle.
+    bool m_terminate;                     ///< Flag to terminate management thread.
 
-    std::string m_mac_address;    ///< Mac address of camera to connect to
+    std::string m_mac_address;            ///< Mac address of camera to connect to.
+    std::shared_ptr<sensor_msgs::msg::Image> m_image_msg; ///< Image message to publish.
 
-    std::list<PvBuffer *> m_buffers; ///< List of buffers for GEV stack
+    std::list<PvBuffer *> m_buffers;      ///< List of buffers for GEV stack.
 
-    rclcpp::TimerBase::SharedPtr timer_;
-    std::thread m_aquisition_thread;
+    rclcpp::TimerBase::SharedPtr m_timer; ///< Timer for status callback.
+    std::thread m_management_thread;      ///< Management thread handle.
 
-    std::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_manager_;
-    image_transport::CameraPublisher camera_info_pub_;
-    std::shared_ptr<sensor_msgs::msg::Image> image_msg_;
+    std::shared_ptr<camera_info_manager::CameraInfoManager> m_cinfo_manager;
+    image_transport::CameraPublisher m_camera_pub; ///< Camera publisher.
 };
 } // namespace bottlenose_camera_driver
 #endif //__BOTTLENOSE_CAMERA_DRIVER_HPP__

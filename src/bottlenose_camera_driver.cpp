@@ -40,10 +40,12 @@
 #define BUFFER_COUNT ( 16 )
 #define BUFFER_SIZE ( 3840 * 2160 * 3 ) // 4K UHD, YUV422 + ~1 image plane to account for chunk info
 
-using namespace std::chrono_literals;
-using namespace std;
+
 namespace bottlenose_camera_driver
 {
+  using namespace std::chrono_literals;
+  using namespace std;
+  using namespace cv;
 
 CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bottlenose_camera_driver", node_options)
 {
@@ -60,25 +62,26 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bott
     m_buffers.push_back(buffer );
   }
   m_terminate = false;
+
   for(auto &parameter : bottlenose_parameters) {
     this->declare_parameter(parameter.name, parameter.default_value);
   }
 
-  rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_sensor_data;
-  camera_info_pub_ = image_transport::create_camera_publisher(this, "image", custom_qos_profile);
+  rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_default;
+  m_camera_pub = image_transport::create_camera_publisher(this, "image_raw", custom_qos_profile);
 
-  cinfo_manager_ = std::make_shared<camera_info_manager::CameraInfoManager>(this);
+  m_cinfo_manager = std::make_shared<camera_info_manager::CameraInfoManager>(this);
 
 //  /* get ROS2 config parameter for camera calibration file */
 //  auto camera_calibration_file_param_ = this->declare_parameter("camera_calibration_file", "file://config/camera.yaml");
-//  cinfo_manager_->loadCameraInfo(camera_calibration_file_param_);
+//  m_cinfo_manager->loadCameraInfo(camera_calibration_file_param_);
 
-  timer_ = this->create_wall_timer(1ms, std::bind(&CameraDriver::status_callback, this));
+  m_timer = this->create_wall_timer(1ms, std::bind(&CameraDriver::status_callback, this));
 }
 
 CameraDriver::~CameraDriver() {
   m_terminate = true;
-  m_aquisition_thread.join();
+  m_management_thread.join();
   // Go through the buffer list
   auto iter = m_buffers.begin();
   while ( iter != m_buffers.end() )
@@ -134,22 +137,62 @@ CameraDriver::~CameraDriver() {
 
 void CameraDriver::status_callback() {
   if(m_terminate) {
-//    cout << "DRIN_T" << endl;
     return;
   }
-  if(m_aquisition_thread.joinable()) {
-//    cout << "DRIN_J" << endl;
+  if(m_management_thread.joinable()) {
     return;
   }
   auto mac_address = this->get_parameter("mac_address").as_string();
   if(mac_address == "00:00:00:00:00:00") {
-//    cout << "MAC: " << mac_address << endl;
     return;
   }
-  cout << "DRIN2" << endl;
   m_mac_address = mac_address;
-  m_aquisition_thread = std::thread(&CameraDriver::management_thread, this);
+  m_management_thread = std::thread(&CameraDriver::management_thread, this);
 }
+
+std::shared_ptr<sensor_msgs::msg::Image> CameraDriver::convertFrameToMessage(PvBuffer *buffer) {
+  if(buffer != nullptr) {
+    std_msgs::msg::Header header_;
+    sensor_msgs::msg::Image ros_image;
+
+    // No image component, likely multipart
+    // FIXME: Add points and multipart options
+    PvImage *image = buffer->GetImage();
+    if(image == nullptr)
+      return nullptr;
+
+    ros_image.header = header_;
+    // FIXME: Right now only YUV422_8 encoding, convert to rgb8 to support ROS2 "legacy" tooling
+    if( image->GetPixelType() == PvPixelYUV422_8) {
+      Mat m(image->GetHeight(), image->GetWidth(), CV_8UC2, image->GetDataPointer());
+      Mat res;
+      cvtColor(m, res, COLOR_YUV2RGB_YUYV);
+      ros_image.encoding = "rgb8";
+      ros_image.height = image->GetHeight();
+      ros_image.width = image->GetWidth();
+      ros_image.is_bigendian = false;
+      ros_image.step = image->GetWidth() * 3;
+      size_t size = ros_image.step * image->GetHeight();
+      ros_image.data.resize(size);
+      memcpy(reinterpret_cast<char *>(&ros_image.data[0]), res.data, size);
+    } else {
+      return nullptr;
+    }
+
+    // Timestamp from epoch conversion
+    uint64_t seconds = image->GetTimestamp() / 1e6; //useconds
+    uint64_t nanoseconds = (image->GetTimestamp() - seconds * 1e6) * 1e3; //nanoseconds
+    ros_image.header.stamp.nanosec = nanoseconds;
+    ros_image.header.stamp.sec = seconds;
+    ros_image.header.frame_id = this->get_parameter("frame_id").as_string();
+
+    auto msg_ptr_ = std::make_shared<sensor_msgs::msg::Image>(ros_image);
+    return msg_ptr_;
+  }
+  return nullptr;
+}
+
+
 
 void CameraDriver::management_thread() {
   static size_t i = 0;
@@ -225,6 +268,14 @@ void CameraDriver::management_thread() {
         switch ( buffer->GetPayloadType() ) {
           case PvPayloadTypeImage:
             cout << i++ << "  W: " << dec << buffer->GetImage()->GetWidth() << " H: " << buffer->GetImage()->GetHeight() << endl;
+            m_image_msg = convertFrameToMessage(buffer);
+
+            if(m_image_msg != nullptr) {
+              sensor_msgs::msg::CameraInfo::SharedPtr info_msg(
+                  new sensor_msgs::msg::CameraInfo(m_cinfo_manager->getCameraInfo()));
+              info_msg->header = m_image_msg->header;
+              m_camera_pub.publish(m_image_msg, info_msg);
+            }
             break;
 
           case PvPayloadTypeChunkData:
