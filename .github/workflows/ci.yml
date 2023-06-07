@@ -1,0 +1,52 @@
+# Basic continous integration for sdk-samples
+#    Copyright 2023 Labforge Inc.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+# @author Thomas Reidemeister <thomas@labforge.ca>
+#
+# To setup a self-hosted runner to test this on Linux
+# (1) Setup a Windows 10 machine with autologin
+# (2) Register a Github actions runner on that machine, run from startup (not as headless service runner)
+# (3) Install eBus SDK, and ros humble
+name: ContinousIntegration
+
+on:
+  push:
+    branches: [ ]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: HIL
+    steps:
+      - name: Check out samples
+        uses: actions/checkout@v3
+        with:
+          lfs: true
+          submodules: true
+          path: driver
+      - name: Create environment script
+        run: |
+          source /opt/ros/humble/setup.sh
+          rosdep install -i --from-path . --rosdistro humble -y
+
+      - name: Build environment
+        run: |
+          source /opt/ros/humble/setup.sh
+          source install/local_setup.sh
+          export _colcon_cd_root=$(pwd)
+          colcon build --symlink-install 
+          . install/local_setup.bash
