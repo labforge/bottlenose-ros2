@@ -42,12 +42,13 @@ jobs:
         run: |
           source /opt/ros/humble/setup.sh
           rosdep update
+          # If this fails, install the missing dependencies manually
           rosdep install -i --from-path . --rosdistro humble -y
 
       - name: Build environment
         run: |
           source /opt/ros/humble/setup.sh
-          source install/local_setup.sh
+          #source install/local_setup.sh
           export _colcon_cd_root=$(pwd)
           colcon build --symlink-install 
-          . install/local_setup.bash
+          #. install/local_setup.bash
