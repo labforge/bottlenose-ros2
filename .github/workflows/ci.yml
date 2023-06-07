@@ -50,6 +50,6 @@ jobs:
           source /opt/ros/humble/setup.sh
           export _colcon_cd_root=$(pwd)
           colcon build --symlink-install
-          . install/local_setup.bash
+          source install/local_setup.bash
           colcon build --packages-select bottlenose_camera_driver
-          . install/local_setup.bash
+          source install/local_setup.bash
