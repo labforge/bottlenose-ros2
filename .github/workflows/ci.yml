@@ -54,4 +54,4 @@ jobs:
           cd driver
           colcon build --symlink-install
           cd ..
-          source install/local_setup.bash
+          source install/local_setup.sh
