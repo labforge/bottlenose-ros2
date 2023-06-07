@@ -27,9 +27,7 @@
 
 
 #include <PvDevice.h>
-#include <PvDeviceGEV.h>
 #include <PvStream.h>
-#include <PvStreamGEV.h>
 #include <PvSystem.h>
 #include <PvBuffer.h>
 #include <opencv2/opencv.hpp>
@@ -38,7 +36,7 @@
 #include "bottlenose_parameters.hpp"
 
 #define BUFFER_COUNT ( 16 )
-#define BUFFER_SIZE ( 3840 * 2160 * 3 ) // 4K UHD, YUV422 + ~1 image plane to account for chunk info
+#define BUFFER_SIZE ( 3840 * 2160 * 3 ) // 4K UHD, YUV422 + ~1 image plane to account for chunk data
 
 
 namespace bottlenose_camera_driver
@@ -156,23 +154,77 @@ std::shared_ptr<sensor_msgs::msg::Image> CameraDriver::convertFrameToMessage(PvB
   return nullptr;
 }
 
+bool CameraDriver::set_interval() {
+  PvGenFloat *interval = dynamic_cast<PvGenFloat *>( m_device->GetParameters()->Get("interval"));
+  if(interval == nullptr) {
+    RCLCPP_ERROR(get_logger(), "Could not configure interval");
+    return false;
+  }
+  PvResult res = interval->SetValue(1000.0 / get_parameter("fps").as_double());
+  if(res.IsFailure()) {
+    RCLCPP_ERROR(get_logger(), "Could not configure interval to %f ms for %f fps",
+                 1000.0 / get_parameter("fps").as_double(),
+                 get_parameter("fps").as_double());
+    return false;
+  }
+  return true;
+}
 
+bool CameraDriver::set_format() {
+  PvGenInteger *heightParam = dynamic_cast<PvGenInteger *>( m_device->GetParameters()->Get("Height"));
+  PvGenInteger *widthParam = dynamic_cast<PvGenInteger *>( m_device->GetParameters()->Get("Width"));
+  if(heightParam == nullptr || widthParam == nullptr) {
+    RCLCPP_ERROR(get_logger(), "Could not configure format");
+    return false;
+  }
+  // Find the position of 'x' in the format specification string
+  auto format = get_parameter("format").as_string();
+  auto xPos = format.find('x');
 
-void CameraDriver::management_thread() {
-  static size_t i = 0;
+  // Extract the width and height substrings
+  std::string widthStr = format.substr(0, xPos);
+  std::string heightStr = format.substr(xPos + 1);
+
+  // Convert the width and height strings to integers
+  int width = std::stoi(widthStr);
+  int height = std::stoi(heightStr);
+
+  // Print the width and height
+  RCLCPP_DEBUG_STREAM(get_logger(), "Decoded format " << width << " x " << height);
+  PvResult res = heightParam->SetValue(height);
+  if(res.IsFailure()) {
+    RCLCPP_ERROR_STREAM(get_logger(), "Could not configure format to " << format);
+    return false;
+  }
+  // Wait for parameter pass-through
+  usleep(200*2000);
+  // Confirm the format
+  int64_t width_in;
+  res = widthParam->GetValue(width_in);
+  if(res.IsFailure()) {
+    RCLCPP_ERROR_STREAM(get_logger(), "Could not configure format to " << format);
+    return false;
+  }
+  if(width_in != width) {
+    RCLCPP_ERROR_STREAM(get_logger(), "Could not configure format to " << format << " actual format is " << width_in << " x " << height);
+    return false;
+  }
+
+  return true;
+}
+
+bool CameraDriver::connect() {
   PvSystem sys = PvSystem();
   const PvDeviceInfo* pDevice;
   PvResult res = sys.FindDevice(m_mac_address.c_str(), &pDevice);
   if(res.IsFailure()) {
     RCLCPP_ERROR(get_logger(), "Failed to find device %s", m_mac_address.c_str());
-    done = true;
-    return;
+    return false;
   }
   PvDevice *device = PvDevice::CreateAndConnect( pDevice->GetConnectionID(), &res );
   if(res.IsFailure() || device == nullptr) {
     RCLCPP_ERROR(get_logger(), "Could not connect to device %s", m_mac_address.c_str());
-    done = true;
-    return;
+    return false;
   }
   PvGenInteger *intval = dynamic_cast<PvGenInteger *>( device->GetParameters()->Get("GevSCPSPacketSize"));
   assert(intval != nullptr);
@@ -184,49 +236,130 @@ void CameraDriver::management_thread() {
   PvStream *stream = PvStream::CreateAndOpen( pDevice->GetConnectionID(), &res );
   if(res.IsFailure() || stream == nullptr) {
     RCLCPP_ERROR(get_logger(), "Could not open device %s, cause %s", m_mac_address.c_str(), res.GetCodeString().GetAscii());
-    device->Disconnect();
-    PvDevice::Free(device);
-    done = true;
-    return;
+    disconnect();
+    return false;
   }
-  PvDeviceGEV* deviceGEV = static_cast<PvDeviceGEV *>( device );
-  PvStreamGEV *streamGEV = static_cast<PvStreamGEV *>( stream );
-  deviceGEV->NegotiatePacketSize();
-  deviceGEV->SetStreamDestination( streamGEV->GetLocalIPAddress(), streamGEV->GetLocalPort() );
+  m_device = static_cast<PvDeviceGEV *>( device );
+  m_stream = static_cast<PvStreamGEV *>( stream );
+  if(m_device == nullptr || m_stream == nullptr) {
+    RCLCPP_ERROR(get_logger(), "Could not initialize GEV stack");
+    disconnect();
+    return false;
+  }
+  res = m_device->NegotiatePacketSize();
+  if(res.IsFailure()) {
+    RCLCPP_ERROR(get_logger(), "Could not negotiate packet size");
+    disconnect();
+    return false;
+  }
+  res = m_device->SetStreamDestination( m_stream->GetLocalIPAddress(), m_stream->GetLocalPort() );
+  if(res.IsFailure()) {
+    RCLCPP_ERROR(get_logger(), "Could not set stream destination to localhost");
+    disconnect();
+    return false;
+  }
+
+  for (const char*param : {"AnswerTimeout",
+                           "CommandRetryCount"}) {
+    intval = static_cast<PvGenInteger *>( device->GetCommunicationParameters()->Get(param));
+    res = intval->SetValue(get_parameter(param).as_int());
+    if(res.IsFailure()) {
+      RCLCPP_ERROR(get_logger(), "Could not adjust communication parameters");
+      disconnect();
+      return false;
+    }
+  }
 
   // Stream tweaks, see https://supportcenter.pleora.com/s/article/Recommended-eBUS-Player-Settings-for-Wireless-Connection
   for (const char*param : {"ResetOnIdle",
                            "MaximumPendingResends",
                            "MaximumResendRequestRetryByPacket",
-                           "MaximumResendGroupSize"}) {
-    intval = static_cast<PvGenInteger *>( stream->GetParameters()->Get(param));
-    intval->SetValue(0);
+                           "MaximumResendGroupSize",
+                           "ResendRequestTimeout",
+                           "RequestTimeout"}) {
+    intval = static_cast<PvGenInteger *>( stream->GetParameters()->Get("ResendRequestTimeout"));
+    res = intval->SetValue(get_parameter(param).as_int());
+    if (res.IsFailure()) {
+      RCLCPP_ERROR(get_logger(), "Could not adjust communication parameters");
+      disconnect();
+      return false;
+    }
   }
-  intval = static_cast<PvGenInteger *>( stream->GetParameters()->Get("ResendRequestTimeout"));
-  intval->SetValue(5000);
-//  intval = static_cast<PvGenInteger *>( stream->GetParameters()->Get("RequestTimeout"));
-//  intval->SetValue(10000);
 
+  return true;
+}
+
+void CameraDriver::disconnect() {
+  if(m_stream != nullptr) {
+    m_stream->Close();
+    PvStream::Free(m_stream);
+  }
+  if(m_device != nullptr) {
+    m_device->Disconnect();
+    PvDeviceGEV::Free(m_device);
+  }
+  m_device = nullptr;
+  m_stream = nullptr;
+}
+
+bool CameraDriver::queue_buffers() {
   // Queue buffers
   auto iter = m_buffers.begin();
   while (iter != m_buffers.end() )
   {
-    // FIXME: check result
-    stream->QueueBuffer( *iter );
+    PvResult res = m_stream->QueueBuffer( *iter );
+    if(res.IsFailure()) {
+      RCLCPP_ERROR(get_logger(), "Could not queue GEV buffers");
+      return false;
+    }
     iter++;
+  }
+  return true;
+}
+
+void CameraDriver::abort_buffers() {
+  m_stream->AbortQueuedBuffers();
+  while ( m_stream->GetQueuedBufferCount() > 0 )
+  {
+    PvBuffer *buffer = nullptr;
+    PvResult operationResult;
+    m_stream->RetrieveBuffer( &buffer, &operationResult );
+  }
+}
+
+
+void CameraDriver::management_thread() {
+  if(!connect()) {
+    done = true;
+    return;
+  }
+  if(!queue_buffers()) {
+    disconnect();
+    done = true;
+    return;
+  }
+  // Apply one-time parameters
+  if(!set_format()) {
+    disconnect();
+    done = true;
+    return;
+  }
+  if(!set_interval()) {
+    disconnect();
+    done = true;
+    return;
   }
 
   // Map the GenICam AcquisitionStart and AcquisitionStop commands
-  PvGenCommand *cmdStart = static_cast<PvGenCommand *>( device->GetParameters()->Get("AcquisitionStart") );
-  PvGenCommand *cmdStop = static_cast<PvGenCommand *>( device->GetParameters()->Get("AcquisitionStop") );
-
-  device->StreamEnable();
+  PvGenCommand *cmdStart = static_cast<PvGenCommand *>( m_device->GetParameters()->Get("AcquisitionStart") );
+  PvGenCommand *cmdStop = static_cast<PvGenCommand *>( m_device->GetParameters()->Get("AcquisitionStop") );
+  m_device->StreamEnable();
   cmdStart->Execute();
 
   while(!m_terminate) {
     PvBuffer *buffer = nullptr;
     PvResult operationResult;
-    res = stream->RetrieveBuffer( &buffer, &operationResult);
+    PvResult res = m_stream->RetrieveBuffer( &buffer, &operationResult);
     if(res.IsOK()) {
       if(operationResult.IsOK() || (get_parameter("keep_partial").as_bool()
         && ((operationResult.GetCode() == PvResult::Code::TOO_MANY_RESENDS) ||
@@ -276,24 +409,20 @@ void CameraDriver::management_thread() {
                              "Acquisition operation failed with " << operationResult.GetCodeString().GetAscii());
         }
       }
-      stream->QueueBuffer( buffer );
+      res = m_stream->QueueBuffer( buffer );
+      if(res.IsFailure()) {
+        RCLCPP_ERROR_STREAM(get_logger(), "Could not queue GEV buffers");
+        break;
+      }
     } else {
       RCLCPP_WARN_STREAM(get_logger(), "Buffer failed with " << res.GetCodeString().GetAscii());
+      break;
     }
   }
   cmdStop->Execute();
-  device->StreamDisable();
-  stream->AbortQueuedBuffers();
-  while ( stream->GetQueuedBufferCount() > 0 )
-  {
-    PvBuffer *buffer = nullptr;
-    PvResult operationResult;
-    stream->RetrieveBuffer( &buffer, &operationResult );
-  }
-  stream->Close();
-  PvStream::Free( stream );
-  device->Disconnect();
-  PvDevice::Free( device );
+  m_device->StreamDisable();
+  abort_buffers();
+  disconnect();
   done = true;
 }
 

@@ -8,9 +8,9 @@
 
 # Building and Installing
 
- * Setup your ros2 workspace
+ * Set up your ros2 workspace
  * Clone this repository into the workspace
- * Build and install with colcon
+ * Build and install with ```colcon```
 ```
 # Build and install all workspace nodes
 colcon build --symlink-install
@@ -21,8 +21,37 @@ source install/local_setup.bash
 ## Usage
 
 ```
+# Source the Genican environment variables from your eBUS installation or add them to .bashrc
+source /opt/pleora/ebus_sdk/Ubuntu-<your version>/bin/set_puregev_env.sh
 ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p mac_address:="8C:1F:64:D0:E0:0C" --log-level bottlenose_camera_driver:=debug
 ```
+
+### Avilable parameters
+
+| Parameter                               | Description                                                                   | Default                 | Run-time adjustable |
+|-----------------------------------------|-------------------------------------------------------------------------------|-------------------------|---------------------|
+| ```mac_address```                       | The MAC address of Bottlenose                                                 | ```00:00:00:00:00:00``` | :x:                 |
+| ```frame_id```                          | The frame_id embedded in image headers                                        | ```camera```            | :heavy_check_mark:  |
+| ```keep_partial```                      | Keep partial images (i.e. corrupted in transmission)                          | ```false```             | :heavy_check_mark:  |
+| ```format```                            | Format of the camera (*)                                                      | ```1920x1440```         | :x:                 |
+| ```fps```                               | Target frames per second (*)                                                  | ```20```                | :x:                 |
+| **GigE Vision Stream Parameters**       |                                                                               |                         |                     |
+| ```AnswerTimeout```                     | Time the GigE Vision Device can take for command response.                    | ```100```               | :x:                 |
+| ```CommandRetryCount```                 | Command attempts before it is considered as failed                            | ```50```                | :x:                 |
+| ```MaximumPendingResends```             | Maximum number of packets in a block that can be missing                      | ```0```                 | :x:                 |
+| ```MaximumResendRequestRetryByPacket``` | The maximum number of times a resend request can be issued.                   | ```0```                 | :x:                 |
+| ```MaximumResendGroupSize```            | Maximum number of packets to resend at once                                   | ```0```                 | :x:                 |
+| ```ResendRequestTimeout```              | Timeout for resend requests in (us)                                           | ```100```               | :x:                 |
+| ```RequestTimeout```                    | Maximum time that the data receiver waits for all the packets of a block (ms) | ```10000```             | :x:                 |
+| ```ResetOnIdle```                       | Time without packets before resetting itself                                  | ```2000```              | :x:                 |
+
+
+
+ * Required parameters:
+   * mac_address: The MAC address of the camera to connect to
+ * Optional
+ * frame_id: The frame_id to use for the camera
+ * camera_name: The name of the camera
 
 Available parameters:
  * FIXME

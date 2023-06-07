@@ -39,6 +39,8 @@
 #include <mutex>
 #include <condition_variable>
 #include <PvBuffer.h>
+#include <PvDeviceGEV.h>
+#include <PvStreamGEV.h>
 
 namespace bottlenose_camera_driver {
   class CameraDriver : public rclcpp::Node {
@@ -48,12 +50,20 @@ namespace bottlenose_camera_driver {
   private:
     std::shared_ptr<sensor_msgs::msg::Image> convertFrameToMessage(PvBuffer *buffer);
 
+    bool set_interval();                  ///< Set camera frame rate.
+    bool set_format();                    ///< Set camera format.
+    bool connect();                       ///< Connect to camera.
+    void disconnect();                    ///< Disconnect from camera.
+    bool queue_buffers();                 ///< Queue buffers for GEV stack.
+    void abort_buffers();                 ///< Abort buffers for GEV stack.
     void management_thread();             ///< Management thread for interacting with GEV stack.
     void status_callback();               ///< ROS2 status callback and orchestration polled from a timer.
 
     std::atomic<bool> done;               ///< Flag for management thread to terminate.
     std::thread m_thread;                 ///< Management thread handle.
     bool m_terminate;                     ///< Flag to terminate management thread.
+    PvDeviceGEV *m_device;                ///< GEV device handle.
+    PvStreamGEV *m_stream;                ///< GEV stream handle.
 
     std::string m_mac_address;            ///< Mac address of camera to connect to.
     std::shared_ptr<sensor_msgs::msg::Image> m_image_msg; ///< Image message to publish.
