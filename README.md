@@ -2,6 +2,8 @@
 
 [![ContinousIntegration](https://github.com/labforge/bottlenose-ros2/actions/workflows/ci.yml/badge.svg)](https://github.com/labforge/bottlenose-ros2/actions/workflows/ci.yml)
 
+This driver currently supports color-image streaming from Bottlenose Mono and Stereo.
+
  * Requirements 
   * ROS2 Foxy or newer, tested with [ROS2 Humble](https://docs.ros.org/en/foxy/Releases/Release-Humble-Hawksbill.html) on Ubuntu 22.04
   * eBUS SDK 6.3, please see the releases in our [SDK Demos](https://github.com/labforge/sdk-demos/releases)
@@ -20,11 +22,15 @@ source install/local_setup.bash
 ```
 
 ## Usage
-
+ * Start the driver node directly or via launch file
 ```
 # Source the Genican environment variables from your eBUS installation or add them to .bashrc
 source /opt/pleora/ebus_sdk/Ubuntu-<your version>/bin/set_puregev_env.sh
 ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p mac_address:="8C:1F:64:D0:E0:0C" --log-level bottlenose_camera_driver:=debug
+```
+ * In a separate terminal, view the camera stream
+```
+ros2 run image_view image_view --ros-args --remap /image:=/image_raw
 ```
 
 ### Available parameters
