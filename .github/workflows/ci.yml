@@ -45,7 +45,7 @@ jobs:
           # If this fails, install the missing dependencies manually
           rosdep install -i --from-path . --rosdistro humble -y
 
-      - name: Build environment
+      - name: Build driver
         run: |
           source /opt/ros/humble/setup.sh
           export _colcon_cd_root=$(pwd)
@@ -55,3 +55,13 @@ jobs:
           colcon build --symlink-install
           cd ..
           source install/local_setup.sh
+
+      - name: Test driver
+        run: |
+          source /opt/ros/humble/setup.sh
+          export _colcon_cd_root=$(pwd)
+          source install/local_setup.sh
+          source /opt/pleora/ebus_sdk/Ubuntu-20.04-x86_64/bin/set_puregev_env.sh
+          cd driver
+          colcon test
+          cd ..

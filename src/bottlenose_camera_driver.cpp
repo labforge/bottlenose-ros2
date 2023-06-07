@@ -79,7 +79,9 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bott
 
 CameraDriver::~CameraDriver() {
   m_terminate = true;
-  m_management_thread.join();
+  if(m_management_thread.joinable()) {
+    m_management_thread.join();
+  }
   // Go through the buffer list
   auto iter = m_buffers.begin();
   while ( iter != m_buffers.end() )
