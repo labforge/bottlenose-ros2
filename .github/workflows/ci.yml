@@ -41,6 +41,7 @@ jobs:
       - name: Create environment script
         run: |
           source /opt/ros/humble/setup.sh
+          rosdep update
           rosdep install -i --from-path . --rosdistro humble -y
 
       - name: Build environment
