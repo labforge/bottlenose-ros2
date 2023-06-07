@@ -1,15 +1,15 @@
- # ROS2 Camera Driver for Bottlenose Cameras (Preliminary)
+# ROS2 Camera Driver for Bottlenose Cameras (Preliminary)
 
 [![ContinousIntegration](https://github.com/labforge/bottlenose-ros2/actions/workflows/ci.yml/badge.svg)](https://github.com/labforge/bottlenose-ros2/actions/workflows/ci.yml)
 
 This driver currently supports color-image streaming from Bottlenose Mono and Stereo.
 
- * Requirements 
+## Requirements 
   * ROS2 Foxy or newer, tested with [ROS2 Humble](https://docs.ros.org/en/foxy/Releases/Release-Humble-Hawksbill.html) on Ubuntu 22.04
   * eBUS SDK 6.3, please see the releases in our [SDK Demos](https://github.com/labforge/sdk-demos/releases)
   * Bottlenose Mono or Stereo Camera, at [firmware](https://github.com/labforge/bottlenose/releases/) v0.1.100 or newer
 
-# Building and Installing
+## Building and Installing
 
  * Set up your [ros2 workspace](https://docs.ros.org/en/humble/Tutorials/Beginner-Client-Libraries/Creating-A-Workspace/Creating-A-Workspace.html)
  * Clone this repository into the workspace
