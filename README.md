@@ -84,7 +84,8 @@ ros2 run image_view image_view --ros-args --remap /image:=/image_raw
 | ```ResendRequestTimeout```              | Timeout for resend requests in (us)                                           | ```100```               | :x:                 |
 | ```RequestTimeout```                    | Maximum time that the data receiver waits for all the packets of a block (ms) | ```10000```             | :x:                 |
 | ```ResetOnIdle```                       | Time without packets before resetting itself                                  | ```2000```              | :x:                 |
- (*) Note: effective limitations are imposed by available bandwidth for the chosen configuration. If the bandwidth is
+ 
+(*) Note: effective limitations are imposed by available bandwidth for the chosen configuration. If the bandwidth is
 exceeded the camera will drop frames. 
 
 (**) Note: For stereo cameras the controls are applied to both sensors simultaneously.
