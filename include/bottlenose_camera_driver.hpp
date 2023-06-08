@@ -48,10 +48,16 @@ namespace bottlenose_camera_driver {
     explicit CameraDriver(const rclcpp::NodeOptions&);
     ~CameraDriver();
   private:
+    /**
+     * Convert the frame to a ROS2 message.
+     * @param buffer Buffer received on GEV interface
+     * @return ROS2 message
+     */
     std::shared_ptr<sensor_msgs::msg::Image> convertFrameToMessage(PvBuffer *buffer);
 
     bool set_interval();                  ///< Set camera frame rate.
     bool set_format();                    ///< Set camera format.
+    bool apply_ccm();                     ///< Apply color correction matrix.
     bool update_runtime_parameters();     ///< Update runtime parameters from ROS2 parameters.
     bool connect();                       ///< Connect to camera.
     void disconnect();                    ///< Disconnect from camera.
@@ -67,7 +73,8 @@ namespace bottlenose_camera_driver {
     PvStreamGEV *m_stream;                ///< GEV stream handle.
 
     std::string m_mac_address;            ///< Mac address of camera to connect to.
-    std::shared_ptr<sensor_msgs::msg::Image> m_image_msg; ///< Image message to publish.
+    /// Image message to publish.
+    std::shared_ptr<sensor_msgs::msg::Image> m_image_msg;
 
     /// Camera parameter cache
     std::map<std::string, std::variant<int64_t, double, std::string>> m_camera_parameter_cache;
@@ -77,7 +84,8 @@ namespace bottlenose_camera_driver {
     std::thread m_management_thread;      ///< Management thread handle.
 
     std::shared_ptr<camera_info_manager::CameraInfoManager> m_cinfo_manager;
-    image_transport::CameraPublisher m_camera_pub; ///< Camera publisher.
+    /// Camera publisher.
+    image_transport::CameraPublisher m_camera_pub;
 };
 } // namespace bottlenose_camera_driver
 #endif //__BOTTLENOSE_CAMERA_DRIVER_HPP__
