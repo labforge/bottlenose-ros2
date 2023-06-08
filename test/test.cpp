@@ -36,7 +36,6 @@ namespace {
     const char*mac = getenv("BOTTLENOSE");
     if(mac) {
       // Start Bottlenose Camera Driver
-      rclcpp::init(0, nullptr);
       rclcpp::NodeOptions options;
       auto bottlenose_camera_driver = std::make_shared<bottlenose_camera_driver::CameraDriver>(options);
       rclcpp::Parameter mac_param("mac_address", mac);
@@ -62,4 +61,52 @@ namespace {
       auto bottlenose_camera_driver = std::make_shared<bottlenose_camera_driver::CameraDriver>(options);
     }
   }
+
+  /**
+   * Test that the driver can be initialized with a custom CCM.
+   */
+  TEST(CameraDrivcerTests, TestCustomCCM) {
+    static atomic<bool> done(false);
+    const char*mac = getenv("BOTTLENOSE");
+    if(mac) {
+      // Start Bottlenose Camera Driver
+      rclcpp::NodeOptions options;
+      auto bottlenose_camera_driver = std::make_shared<bottlenose_camera_driver::CameraDriver>(options);
+      rclcpp::Parameter mac_param("mac_address", mac);
+      bottlenose_camera_driver->set_parameter(mac_param);
+
+      // Set custom CCM parameters
+      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("custom_ccm", true));
+      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("CCMValue00", 0.5));
+      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("CCMValue01", 0.0));
+      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("CCMValue02", 0.0));
+      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("CCMValue10", 0.0));
+      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("CCMValue11", 0.5));
+      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("CCMValue12", 0.0));
+      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("CCMValue20", 0.0));
+      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("CCMValue21", 0.0));
+      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("CCMValue22", 0.5));
+
+      // Fire up ROS driver
+      rclcpp::executors::SingleThreadedExecutor exec;
+      exec.add_node(bottlenose_camera_driver);
+      std::thread spin_thread([&exec]() {
+        while(!done) {
+          exec.spin_once(100ms);
+        }
+      });
+      sleep(3);
+      ASSERT_TRUE(bottlenose_camera_driver->is_streaming());
+      done = true;
+      spin_thread.join();
+    } else {
+      GTEST_SKIP() << "No sensor to test against, skipping test";
+    }
+  }
+}
+
+int main(int argc, char** argv) {
+  testing::InitGoogleTest(&argc, argv);
+  rclcpp::init(0, nullptr);
+  return RUN_ALL_TESTS();
 }
