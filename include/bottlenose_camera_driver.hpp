@@ -46,6 +46,7 @@ namespace bottlenose_camera_driver {
   class CameraDriver : public rclcpp::Node {
   public:
     explicit CameraDriver(const rclcpp::NodeOptions&);
+    bool is_streaming();
     ~CameraDriver();
   private:
     /**

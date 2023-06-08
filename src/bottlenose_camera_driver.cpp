@@ -550,6 +550,10 @@ void CameraDriver::management_thread() {
   done = true;
 }
 
+bool CameraDriver::is_streaming() {
+    return !done && m_device != nullptr && m_stream != nullptr && m_stream->IsOpen();
+}
+
 } // namespace bottlenose_camera_driver
 
 #include "rclcpp_components/register_node_macro.hpp"
