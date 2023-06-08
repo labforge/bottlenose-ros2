@@ -37,6 +37,7 @@
 
 #define BUFFER_COUNT ( 16 )
 #define BUFFER_SIZE ( 3840 * 2160 * 3 ) // 4K UHD, YUV422 + ~1 image plane to account for chunk data
+#define WAIT_PROPAGATE() usleep(250 * 1000)
 
 
 namespace bottlenose_camera_driver
@@ -156,6 +157,107 @@ std::shared_ptr<sensor_msgs::msg::Image> CameraDriver::convertFrameToMessage(PvB
   return nullptr;
 }
 
+bool CameraDriver::apply_ccm() {
+    if(get_parameter("custom_ccm").as_bool()) {
+        // Find CUSTOM CCM profile in sensor
+        PvGenEnum * custom = static_cast<PvGenEnum *>(m_device->GetParameters()->Get("CCMColorProfile"));
+        PvResult res = custom->SetValue("Custom");
+        if(res.IsFailure()) {
+            RCLCPP_ERROR(get_logger(), "Could not select custom CCM profile");
+            return false;
+        }
+        WAIT_PROPAGATE();
+        // Set custom CCM values
+        for(auto param : {"CCMValue00",
+                     "CCMValue01",
+                     "CCMValue02",
+                     "CCMValue10",
+                     "CCMValue11",
+                     "CCMValue12",
+                     "CCMValue20",
+                     "CCMValue21",
+                     "CCMValue22"}) {
+            PvGenFloat * ccm = static_cast<PvGenFloat *>(m_device->GetParameters()->Get(param));
+            res = ccm->SetValue(get_parameter(param).as_double());
+            if(res.IsFailure()) {
+                RCLCPP_ERROR(get_logger(), "Could not set %s", param);
+                return false;
+            }
+        }
+        WAIT_PROPAGATE();
+        PvGenCommand * apply = static_cast<PvGenCommand *>(m_device->GetParameters()->Get("SetCustomProfile"));
+        res = apply->Execute();
+        if(!res) {
+            RCLCPP_ERROR(get_logger(), "Could not apply custom CCM profile");
+            return false;
+        }
+        RCLCPP_DEBUG_STREAM(get_logger(), "Applied custom CCM profile");
+    }
+    return true;
+}
+
+bool CameraDriver::update_runtime_parameters() {
+    // All integer parameters
+    for(auto param : {"blackBlue",
+                      "blackGB",
+                      "blackGR",
+                      "blackRed",
+                      "brightness",
+                      "linearContrast",
+                      "dgainBlue",
+                      "dgainGB",
+                      "dgainGR",
+                      "dgainRed"}) {
+        PvGenInteger *intval = static_cast<PvGenInteger *>( m_device->GetParameters()->Get(param));
+        int64_t val = get_parameter(param).as_int();
+        try {
+            auto value = m_camera_parameter_cache.at(param);
+            if(get<int64_t>(value) == val) {
+                continue;
+            }
+        } catch(std::out_of_range &e) { }
+
+        PvResult res = intval->SetValue(val);
+        if (res.IsFailure()) {
+            RCLCPP_WARN_STREAM(get_logger(), "Could not set parameter " << param << " to " << val);
+            return false;
+        }
+        // Cache
+        m_camera_parameter_cache[param] = val;
+        RCLCPP_DEBUG_STREAM(get_logger(), "Set parameter " << param << " to " << val);
+    }
+
+    for(auto param : {"blackGainBlue",
+            "blackGainGB",
+            "blackGainGR",
+            "blackGainRed",
+            "exposure",
+            "gain",
+            "gamma",
+            "wbBlue",
+            "wbGreen",
+            "wbRed"}) {
+        PvGenFloat *floatVal = static_cast<PvGenFloat *>( m_device->GetParameters()->Get(param));
+        double val = get_parameter(param).as_double();
+        try {
+            auto value = m_camera_parameter_cache.at(param);
+            if(get<double>(value) == val) {
+                continue;
+            }
+        } catch(std::out_of_range &e) { }
+
+        PvResult res = floatVal->SetValue(val);
+        if (res.IsFailure()) {
+            RCLCPP_WARN_STREAM(get_logger(), "Could not set parameter " << param << " to " << val);
+            return false;
+        }
+        // Cache
+        m_camera_parameter_cache[param] = val;
+        RCLCPP_DEBUG_STREAM(get_logger(), "Set parameter " << param << " to " << val);
+    }
+    return true;
+}
+
 bool CameraDriver::set_interval() {
   PvGenFloat *interval = dynamic_cast<PvGenFloat *>( m_device->GetParameters()->Get("interval"));
   if(interval == nullptr) {
@@ -169,6 +271,8 @@ bool CameraDriver::set_interval() {
                  get_parameter("fps").as_double());
     return false;
   }
+  RCLCPP_DEBUG_STREAM(get_logger(), "Configured interval to " << 1000.0 / get_parameter("fps").as_double()
+    << " ms for " << get_parameter("fps").as_double() << " fps");
   return true;
 }
 
@@ -199,7 +303,7 @@ bool CameraDriver::set_format() {
     return false;
   }
   // Wait for parameter pass-through
-  usleep(200*2000);
+  WAIT_PROPAGATE();
   // Confirm the format
   int64_t width_in;
   res = widthParam->GetValue(width_in);
@@ -211,6 +315,7 @@ bool CameraDriver::set_format() {
     RCLCPP_ERROR_STREAM(get_logger(), "Could not configure format to " << format << " actual format is " << width_in << " x " << height);
     return false;
   }
+  RCLCPP_DEBUG_STREAM(get_logger(), "Configured format to " << format);
 
   return true;
 }
@@ -270,6 +375,7 @@ bool CameraDriver::connect() {
       disconnect();
       return false;
     }
+    RCLCPP_DEBUG_STREAM(get_logger(), "Set " << param << " to " << get_parameter(param).as_int());
   }
 
   // Stream tweaks, see https://supportcenter.pleora.com/s/article/Recommended-eBUS-Player-Settings-for-Wireless-Connection
@@ -286,6 +392,7 @@ bool CameraDriver::connect() {
       disconnect();
       return false;
     }
+    RCLCPP_DEBUG_STREAM(get_logger(), "Set " << param << " to " << get_parameter(param).as_int());
   }
 
   return true;
@@ -347,6 +454,17 @@ void CameraDriver::management_thread() {
     return;
   }
   if(!set_interval()) {
+    disconnect();
+    done = true;
+    return;
+  }
+  if(!apply_ccm()) {
+    disconnect();
+    done = true;
+    return;
+  }
+  // Fail hard on first runtime parameter update issues
+  if(!update_runtime_parameters()) {
     disconnect();
     done = true;
     return;
@@ -413,12 +531,16 @@ void CameraDriver::management_thread() {
       }
       res = m_stream->QueueBuffer( buffer );
       if(res.IsFailure()) {
-        RCLCPP_ERROR_STREAM(get_logger(), "Could not queue GEV buffers");
+        RCLCPP_ERROR(get_logger(), "Could not queue GEV buffers");
         break;
       }
     } else {
       RCLCPP_WARN_STREAM(get_logger(), "Buffer failed with " << res.GetCodeString().GetAscii());
       break;
+    }
+    // Even if parameter update fails, keep going to keep system alive after streaming is enabled
+    if(!update_runtime_parameters()) {
+        RCLCPP_WARN(get_logger(), "Runtime parameter update issue");
     }
   }
   cmdStop->Execute();
@@ -426,6 +548,10 @@ void CameraDriver::management_thread() {
   abort_buffers();
   disconnect();
   done = true;
+}
+
+bool CameraDriver::is_streaming() {
+    return !done && m_device != nullptr && m_stream != nullptr && m_stream->IsOpen();
 }
 
 } // namespace bottlenose_camera_driver

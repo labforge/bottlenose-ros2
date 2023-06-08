@@ -42,6 +42,39 @@ ros2 run image_view image_view --ros-args --remap /image:=/image_raw
 | ```keep_partial```                      | Keep partial images (i.e. corrupted in transmission)                          | ```false```             | :heavy_check_mark:  |
 | ```format```                            | Format of the camera (*)                                                      | ```1920x1440```         | :x:                 |
 | ```fps```                               | Target frames per second (*)                                                  | ```20```                | :x:                 |
+| ***Image Sensor(s) Controls***          | (**)                                                                          |                         |                     |
+| ```exposure```                          | Exposure time in milliseconds                                                 | ```20```                | :heavy_check_mark:  |
+| ```gain```                              | Analog gain                                                                   | ```1.0```               | :heavy_check_mark:  |
+| ```dGainBlue```                         | Digital gain for blue pixels in Bayer array                                   | ```1024```              | :heavy_check_mark:  |
+| ```dgainGB```                           | Digital gain for green-blue pixels in Bayer array                             | ```1024```              | :heavy_check_mark:  |
+| ```dgainGR```                           | Digital gain for green-red pixels in Bayer array                              | ```1024```              | :heavy_check_mark:  |
+| ```dGainRed```                          | Digital gain for red pixels in Bayer array                                    | ```1024```              | :heavy_check_mark:  |
+| **Image Processing Controls**           |                                                                               |                         |                     |
+| ```gamma```                             | Gamma correction of the image                                                 | ```2.2```               | :heavy_check_mark:  |
+| ```blackBlue```                         | Black level for blue pixels in Bayer array                                    | ```255```               | :heavy_check_mark:  |
+| ```blackGB```                           | Black level for green-blue pixels in Bayer array                              | ```255```               | :heavy_check_mark:  |
+| ```blackGR```                           | Black level for green-red pixels in Bayer array                               | ```255```               | :heavy_check_mark:  |
+| ```blackRed```                          | Black level for red pixels in Bayer array                                     | ```255```               | :heavy_check_mark:  |
+| ```blackGainBlue```                     | Black gain for blue pixels in Bayer array                                     | ```0.9375```            | :heavy_check_mark:  |
+| ```blackGainGB```                       | Black gain for green-blue pixels in Bayer array                               | ```0.9375```            | :heavy_check_mark:  |
+| ```blackGainGR```                       | Black gain for green-red pixels in Bayer array                                | ```0.9375```            | :heavy_check_mark:  |
+| ```blackGainRed```                      | Black gain for red pixels in Bayer array                                      | ```0.9375```            | :heavy_check_mark:  |
+| ```brightness```                        | Brightness of the image                                                       | ```-13107```            | :heavy_check_mark:  |
+| ```linearContrast```                    | Linear contrast of the image                                                  | ```136```               | :heavy_check_mark:  |
+| ```wbBlue```                            | White balance for blue component                                              | ```1.0```               | :heavy_check_mark:  |
+| ```wbGreen```                           | White balance for green component                                             | ```1.0```               | :heavy_check_mark:  |
+| ```wbRed```                             | White balance for red component                                               | ```1.0```               | :heavy_check_mark:  |
+| **Color Correction Controls**           |                                                                               |                         |                     |
+| ```custom_ccm```                        | Enable custom color correction matrix                                         | ```false```             | :x:                 |
+| ```CCMValue00```                        | Color correction matrix value at row 0, column 0 (only if custom_ccm=true)    | ```1.0```               | :x:                 |
+| ```CCMValue01```                        | Color correction matrix value at row 0, column 1 (only if custom_ccm=true)    | ```0.0```               | :x:                 |
+| ```CCMValue02```                        | Color correction matrix value at row 0, column 2 (only if custom_ccm=true)    | ```0.0```               | :x:                 |
+| ```CCMValue10```                        | Color correction matrix value at row 1, column 0 (only if custom_ccm=true)    | ```0.0```               | :x:                 |
+| ```CCMValue11```                        | Color correction matrix value at row 1, column 1 (only if custom_ccm=true)    | ```1.0```               | :x:                 |
+| ```CCMValue12```                        | Color correction matrix value at row 1, column 2 (only if custom_ccm=true)    | ```0.0```               | :x:                 |
+| ```CCMValue20```                        | Color correction matrix value at row 2, column 0 (only if custom_ccm=true)    | ```0.0```               | :x:                 |
+| ```CCMValue21```                        | Color correction matrix value at row 2, column 1 (only if custom_ccm=true)    | ```0.0```               | :x:                 |
+| ```CCMValue22```                        | Color correction matrix value at row 2, column 2 (only if custom_ccm=true)    | ```1.0```               | :x:                 |
 | **GigE Vision Stream Parameters**       |                                                                               |                         |                     |
 | ```AnswerTimeout```                     | Time the GigE Vision Device can take for command response.                    | ```100```               | :x:                 |
 | ```CommandRetryCount```                 | Command attempts before it is considered as failed                            | ```50```                | :x:                 |
@@ -53,6 +86,8 @@ ros2 run image_view image_view --ros-args --remap /image:=/image_raw
 | ```ResetOnIdle```                       | Time without packets before resetting itself                                  | ```2000```              | :x:                 |
  (*) Note: effective limitations are imposed by available bandwidth for the chosen configuration. If the bandwidth is
 exceeded the camera will drop frames. 
+
+(**) Note: For stereo cameras the controls are applied to both sensors simultaneously.
 
  * Required parameters:
    * mac_address: The MAC address of the camera to connect to
