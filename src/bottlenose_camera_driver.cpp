@@ -156,6 +156,66 @@ std::shared_ptr<sensor_msgs::msg::Image> CameraDriver::convertFrameToMessage(PvB
   return nullptr;
 }
 
+bool CameraDriver::update_runtime_parameters() {
+    // All integer parameters
+    for(auto param : {"blackBlue",
+                      "blackGB",
+                      "blackGR",
+                      "blackRed",
+                      "brightness",
+                      "linearContrast",
+                      "dgainBlue",
+                      "dgainGB",
+                      "dgainGR",
+                      "dgainRed"}) {
+        PvGenInteger *intval = static_cast<PvGenInteger *>( m_device->GetParameters()->Get(param));
+        int64_t val = get_parameter(param).as_int();
+        try {
+            auto value = m_camera_parameter_cache.at(param);
+            if(get<int64_t>(value) == val) {
+                continue;
+            }
+        } catch(std::out_of_range &e) { }
+
+        PvResult res = intval->SetValue(val);
+        if (res.IsFailure()) {
+            RCLCPP_WARN_STREAM(get_logger(), "Could not set parameter " << param << " to " << val);
+            return false;
+        }
+        // Cache
+        m_camera_parameter_cache[param] = val;
+    }
+
+    for(auto param : {"blackGainBlue",
+            "blackGainGB",
+            "blackGainGR",
+            "blackGainRed",
+            "exposure",
+            "gain",
+            "gamma",
+            "wbBlue",
+            "wbGreen",
+            "wbRed"}) {
+        PvGenFloat *floatVal = static_cast<PvGenFloat *>( m_device->GetParameters()->Get(param));
+        double val = get_parameter(param).as_double();
+        try {
+            auto value = m_camera_parameter_cache.at(param);
+            if(get<double>(value) == val) {
+                continue;
+            }
+        } catch(std::out_of_range &e) { }
+
+        PvResult res = floatVal->SetValue(val);
+        if (res.IsFailure()) {
+            RCLCPP_WARN_STREAM(get_logger(), "Could not set parameter " << param << " to " << val);
+            return false;
+        }
+        // Cache
+        m_camera_parameter_cache[param] = val;
+    }
+    return true;
+}
+
 bool CameraDriver::set_interval() {
   PvGenFloat *interval = dynamic_cast<PvGenFloat *>( m_device->GetParameters()->Get("interval"));
   if(interval == nullptr) {
@@ -351,6 +411,12 @@ void CameraDriver::management_thread() {
     done = true;
     return;
   }
+  // Fail hard on first runtime parameter update issues
+  if(!update_runtime_parameters()) {
+    disconnect();
+    done = true;
+    return;
+  }
 
   // Map the GenICam AcquisitionStart and AcquisitionStop commands
   PvGenCommand *cmdStart = static_cast<PvGenCommand *>( m_device->GetParameters()->Get("AcquisitionStart") );
@@ -413,12 +479,16 @@ void CameraDriver::management_thread() {
       }
       res = m_stream->QueueBuffer( buffer );
       if(res.IsFailure()) {
-        RCLCPP_ERROR_STREAM(get_logger(), "Could not queue GEV buffers");
+        RCLCPP_ERROR(get_logger(), "Could not queue GEV buffers");
         break;
       }
     } else {
       RCLCPP_WARN_STREAM(get_logger(), "Buffer failed with " << res.GetCodeString().GetAscii());
       break;
+    }
+    // Even if parameter update fails, keep going to keep system alive after streaming is enabled
+    if(!update_runtime_parameters()) {
+        RCLCPP_WARN(get_logger(), "Runtime parameter update issue");
     }
   }
   cmdStop->Execute();

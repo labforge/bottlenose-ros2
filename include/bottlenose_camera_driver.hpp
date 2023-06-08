@@ -52,6 +52,7 @@ namespace bottlenose_camera_driver {
 
     bool set_interval();                  ///< Set camera frame rate.
     bool set_format();                    ///< Set camera format.
+    bool update_runtime_parameters();     ///< Update runtime parameters from ROS2 parameters.
     bool connect();                       ///< Connect to camera.
     void disconnect();                    ///< Disconnect from camera.
     bool queue_buffers();                 ///< Queue buffers for GEV stack.
@@ -68,6 +69,8 @@ namespace bottlenose_camera_driver {
     std::string m_mac_address;            ///< Mac address of camera to connect to.
     std::shared_ptr<sensor_msgs::msg::Image> m_image_msg; ///< Image message to publish.
 
+    /// Camera parameter cache
+    std::map<std::string, std::variant<int64_t, double, std::string>> m_camera_parameter_cache;
     std::list<PvBuffer *> m_buffers;      ///< List of buffers for GEV stack.
 
     rclcpp::TimerBase::SharedPtr m_timer; ///< Timer for status callback.
