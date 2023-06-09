@@ -67,7 +67,7 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bott
   }
 
   rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_default;
-  m_camera_pub = image_transport::create_camera_publisher(this, "image_raw", custom_qos_profile);
+  m_camera_pub = image_transport::create_camera_publisher(this, "image_color", custom_qos_profile);
 
   m_cinfo_manager = std::make_shared<camera_info_manager::CameraInfoManager>(this);
 

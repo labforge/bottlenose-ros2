@@ -97,10 +97,35 @@ exceeded the camera will drop frames.
 ```
 bottlenose_camera_driver
  |
- +-- camera_image_raw      : Color image stream of Bottlenose camera
+ +-- camera_info          : Camera calibration data
+ +-- image_color          : Color image stream of Bottlenose camera (unrectified, if rectification is disabled)
+ +-- image_color_1        : Color image stream of Bottlenose camera (unrectified, if rectification is disabled), 
+ |                          stereo only
+ +-- image_rect_color     : Rectified color image stream of Bottlenose camera (if rectification is enabled)
+ +-- image_rect_color_1   : Rectified color image stream of Bottlenose camera (if rectification is enabled), 
+ |                          stereo only
+ +-- depth
+     +-- image_rect_color : Rectified disparity image stream of Bottlenose camera (if depth is enabled)
 ```
+In the current release the topics ```image_color```, ```image_rect_color``` and ```depth/image_rect_color``` 
+are exclusive. See the below for the available configurations:
+
+ * ```mode=0``` ***Color streaming***
+   * ```rectify=0``` -> ```image_color{_1}``` (*default*)
+   * ```rectify=1``` -> ```image_rect_color{_1}```
+   * ***Stereo only***
+     * Set sensor to ```0``` or ```1``` to switch between left or right sensor
+   
+ * ```mode=1``` ***Stereo streaming***
+   * ```rectify=0``` -> ```image_color``` and ```image_color_1```
+   * ```rectify=1``` -> ```image_rect_color``` and ```image_rect_color_1```
+
+ * ```mode=3``` ***Disparity streaming***
+   * ```rectify=1``` -> ```depth/image_rect_color``` 
+   * Note ```rectify=0``` is not supported for depth streaming
 
 ## References
  * Bottlenose [Getting Started](https://docs.labforge.ca/docs/getting-started)
+ * Bottlenose [Calibration Guide](https://docs.labforge.ca/docs/3d-modules) 
  * Bottlenose [SDK Demos](https://github.com/labforge/sdk-demos)
 
