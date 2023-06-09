@@ -1,6 +1,6 @@
-image_width: 640
-image_height: 480
-camera_name: camera
+image_width: 1920
+image_height: 1440
+camera_name: Bottlenose
 camera_matrix:
   rows: 3
   cols: 3

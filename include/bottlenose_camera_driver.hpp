@@ -85,8 +85,16 @@ namespace bottlenose_camera_driver {
     std::thread m_management_thread;      ///< Management thread handle.
 
     std::shared_ptr<camera_info_manager::CameraInfoManager> m_cinfo_manager;
-    /// Camera publisher.
-    image_transport::CameraPublisher m_camera_pub;
+    /// Camera publisher: color image (unrectified).
+    image_transport::CameraPublisher m_image_color;
+    /// Camera publisher: color image (rectified).
+    image_transport::CameraPublisher m_image_rect_color;
+    /// Camera publisher: color image, sensor 1 (unrectified).
+    image_transport::CameraPublisher m_image_color_1;
+    /// Camera publisher: color image, sensor 1 (rectified).
+    image_transport::CameraPublisher m_image_rect_color_1;
+    /// Camera publisher: depth stream.
+    image_transport::CameraPublisher m_depth_image_rect;
 };
 } // namespace bottlenose_camera_driver
 #endif //__BOTTLENOSE_CAMERA_DRIVER_HPP__
