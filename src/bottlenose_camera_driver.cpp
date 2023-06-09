@@ -105,13 +105,13 @@ void CameraDriver::status_callback() {
       m_management_thread.join();
     }
   }
-  auto mac_address = this->get_parameter("mac_address").as_string();
+  auto mac_address = get_parameter("mac_address").as_string();
   if(mac_address == "00:00:00:00:00:00") {
     RCLCPP_INFO_ONCE(get_logger(), "Bottlenose undefined please set mac_address");
     return;
   }
-  string calibration_file = this->get_parameter("camera_calibration_file").as_string();
-  if(!m_cinfo_manager->loadCameraInfo(get_parameter(calibration_file).as_string())) {
+  string calibration_file = get_parameter("camera_calibration_file").as_string();
+  if(!m_cinfo_manager->loadCameraInfo(calibration_file)) {
     RCLCPP_ERROR(get_logger(), "Failed to load camera calibration file %s", calibration_file.c_str());
     return;
   }
@@ -154,7 +154,7 @@ std::shared_ptr<sensor_msgs::msg::Image> CameraDriver::convertFrameToMessage(PvB
     uint64_t nanoseconds = (image->GetTimestamp() - seconds * 1e6) * 1e3; //nanoseconds
     ros_image.header.stamp.nanosec = nanoseconds;
     ros_image.header.stamp.sec = seconds;
-    ros_image.header.frame_id = this->get_parameter("frame_id").as_string();
+    ros_image.header.frame_id = get_parameter("frame_id").as_string();
 
     auto msg_ptr_ = std::make_shared<sensor_msgs::msg::Image>(ros_image);
     return msg_ptr_;

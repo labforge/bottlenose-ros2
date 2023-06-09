@@ -41,6 +41,7 @@ ros2 run image_view image_view --ros-args --remap /image:=/image_raw
 | ```frame_id```                          | The frame_id embedded in image headers                                        | ```camera```              | :heavy_check_mark:  |
 | ```keep_partial```                      | Keep partial images (i.e. corrupted in transmission)                          | ```false```               | :heavy_check_mark:  |
 | ```camera_calibration_file```           | Camera Calibration File (*)                                                   | ```config/camera.yaml```  | :x:                 |
+| ```mode```                              | Camera output (**)                                                            | ```0```                   | :x:                 |
 | ```fps```                               | Target frames per second (**)                                                 | ```20```                  | :x:                 |
 | ***Image Sensor(s) Controls***          | (***)                                                                         |                           |                     |
 | ```exposure```                          | Exposure time in milliseconds                                                 | ```20```                  | :heavy_check_mark:  |
