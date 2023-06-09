@@ -67,13 +67,13 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bott
   }
 
   rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_default;
-  m_camera_pub = image_transport::create_camera_publisher(this, "image_color", custom_qos_profile);
+  m_image_color = image_transport::create_camera_publisher(this, "image_color", custom_qos_profile);
+  m_image_rect_color = image_transport::create_camera_publisher(this, "m_image_rect_color", custom_qos_profile);
+  m_image_color_1 = image_transport::create_camera_publisher(this, "image_color_1", custom_qos_profile);
+  m_image_rect_color_1 = image_transport::create_camera_publisher(this, "m_image_rect_color_1", custom_qos_profile);
+  m_depth_image_rect = image_transport::create_camera_publisher(this, "depth/image_rect_color", custom_qos_profile);
 
   m_cinfo_manager = std::make_shared<camera_info_manager::CameraInfoManager>(this);
-
-//  /* get ROS2 config parameter for camera calibration file */
-//  auto camera_calibration_file_param_ = this->declare_parameter("camera_calibration_file", "file://config/camera.yaml");
-//  m_cinfo_manager->loadCameraInfo(camera_calibration_file_param_);
 
   m_timer = this->create_wall_timer(1ms, std::bind(&CameraDriver::status_callback, this));
 }
@@ -108,6 +108,11 @@ void CameraDriver::status_callback() {
   auto mac_address = this->get_parameter("mac_address").as_string();
   if(mac_address == "00:00:00:00:00:00") {
     RCLCPP_INFO_ONCE(get_logger(), "Bottlenose undefined please set mac_address");
+    return;
+  }
+  string calibration_file = this->get_parameter("camera_calibration_file").as_string();
+  if(!m_cinfo_manager->loadCameraInfo(get_parameter(calibration_file).as_string())) {
+    RCLCPP_ERROR(get_logger(), "Failed to load camera calibration file %s", calibration_file.c_str());
     return;
   }
   m_mac_address = mac_address;
@@ -283,23 +288,10 @@ bool CameraDriver::set_format() {
     RCLCPP_ERROR(get_logger(), "Could not configure format");
     return false;
   }
-  // Find the position of 'x' in the format specification string
-  auto format = get_parameter("format").as_string();
-  auto xPos = format.find('x');
-
-  // Extract the width and height substrings
-  std::string widthStr = format.substr(0, xPos);
-  std::string heightStr = format.substr(xPos + 1);
-
-  // Convert the width and height strings to integers
-  int width = std::stoi(widthStr);
-  int height = std::stoi(heightStr);
-
-  // Print the width and height
-  RCLCPP_DEBUG_STREAM(get_logger(), "Decoded format " << width << " x " << height);
-  PvResult res = heightParam->SetValue(height);
+  m_cinfo_manager->getCameraInfo().height;
+  PvResult res = heightParam->SetValue(m_cinfo_manager->getCameraInfo().height);
   if(res.IsFailure()) {
-    RCLCPP_ERROR_STREAM(get_logger(), "Could not configure format to " << format);
+    RCLCPP_ERROR(get_logger(), "Could not configure format, check your camera configuration");
     return false;
   }
   // Wait for parameter pass-through
@@ -308,14 +300,17 @@ bool CameraDriver::set_format() {
   int64_t width_in;
   res = widthParam->GetValue(width_in);
   if(res.IsFailure()) {
-    RCLCPP_ERROR_STREAM(get_logger(), "Could not configure format to " << format);
+    RCLCPP_ERROR_STREAM(get_logger(), "Could not configure format to " <<
+      m_cinfo_manager->getCameraInfo().width << " x " << m_cinfo_manager->getCameraInfo().height);
     return false;
   }
-  if(width_in != width) {
-    RCLCPP_ERROR_STREAM(get_logger(), "Could not configure format to " << format << " actual format is " << width_in << " x " << height);
+  if(width_in != m_cinfo_manager->getCameraInfo().width) {
+    RCLCPP_ERROR_STREAM(get_logger(), "Could not configure format to " <<
+      m_cinfo_manager->getCameraInfo().width << " x " << m_cinfo_manager->getCameraInfo().height);
     return false;
   }
-  RCLCPP_DEBUG_STREAM(get_logger(), "Configured format to " << format);
+  RCLCPP_DEBUG_STREAM(get_logger(), "Configured format to " <<
+    m_cinfo_manager->getCameraInfo().width << " x " << m_cinfo_manager->getCameraInfo().height);
 
   return true;
 }
@@ -496,7 +491,7 @@ void CameraDriver::management_thread() {
               sensor_msgs::msg::CameraInfo::SharedPtr info_msg(
                   new sensor_msgs::msg::CameraInfo(m_cinfo_manager->getCameraInfo()));
               info_msg->header = m_image_msg->header;
-              m_camera_pub.publish(m_image_msg, info_msg);
+              m_image_color.publish(m_image_msg, info_msg);
             }
             break;
 

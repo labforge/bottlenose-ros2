@@ -29,7 +29,7 @@ typedef struct {
 
 const parameter_t bottlenose_parameters[] = {
   {"frame_id", rclcpp::ParameterValue("camera")},
-  {"format", rclcpp::ParameterValue("1920x1440")},
+  {"camera_calibration_file", rclcpp::ParameterValue("file://config/camera.yaml")},
   {"mac_address", rclcpp::ParameterValue("00:00:00:00:00:00")},
   {"keep_partial", rclcpp::ParameterValue(false)},
   /* Device parameters */
