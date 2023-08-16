@@ -18,6 +18,7 @@
 @author Thomas Reidemeister <thomas@labforge.ca>
 */
 
+#include <unistd.h>
 #include <chrono>
 #include <memory>
 #include <string>
@@ -330,7 +331,8 @@ bool CameraDriver::connect() {
   }
   PvDevice *device = PvDevice::CreateAndConnect( pDevice->GetConnectionID(), &res );
   if(res.IsFailure() || device == nullptr) {
-    RCLCPP_ERROR(get_logger(), "Could not connect to device %s", m_mac_address.c_str());
+    RCLCPP_ERROR(get_logger(), "Could not connect to device %s\nCause: %s\nDescription: %s",
+                 m_mac_address.c_str(), res.GetCodeString().GetAscii(), res.GetDescription().GetAscii());
     return false;
   }
   PvGenInteger *intval = dynamic_cast<PvGenInteger *>( device->GetParameters()->Get("GevSCPSPacketSize"));
@@ -385,7 +387,7 @@ bool CameraDriver::connect() {
                            "MaximumResendGroupSize",
                            "ResendRequestTimeout",
                            "RequestTimeout"}) {
-    intval = static_cast<PvGenInteger *>( stream->GetParameters()->Get("ResendRequestTimeout"));
+    intval = static_cast<PvGenInteger *>( stream->GetParameters()->Get(param));
     res = intval->SetValue(get_parameter(param).as_int());
     if (res.IsFailure()) {
       RCLCPP_ERROR(get_logger(), "Could not adjust communication parameters");
