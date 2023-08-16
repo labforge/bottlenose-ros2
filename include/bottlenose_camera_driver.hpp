@@ -22,6 +22,7 @@
 
 #include <stdio.h>
 #include <iostream>
+#include <variant>
 #include "rclcpp/rclcpp.hpp"
 
 #include "std_msgs/msg/string.hpp"
