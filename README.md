@@ -28,12 +28,15 @@ source install/local_setup.bash
 ```
 # Source the Genican environment variables from your eBUS installation or add them to .bashrc
 source /opt/pleora/ebus_sdk/Ubuntu-<your version>/bin/set_puregev_env.sh
-ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p mac_address:="8C:1F:64:D0:E0:0C" --log-level bottlenose_camera_driver:=debug
+# replace <MAC> with the MAC address of your camera (see product label or output of eBusPlayer connection dialog)
+ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p mac_address:="<MAC>" --log-level bottlenose_camera_driver:=debug
 ```
  * In a separate terminal, view the camera stream
 ```
 ros2 run image_view image_view --ros-args --remap /image:=/image_raw
 ```
+ * Stage your camera calibration file in your configuration as needed. If not provided, the camera driver will output 
+   non-rectified images.
 
 ### Available parameters
 
