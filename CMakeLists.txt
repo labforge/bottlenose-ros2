@@ -40,7 +40,9 @@ find_package(camera_calibration_parsers REQUIRED)
 find_package(OpenCV 4 REQUIRED)
 
 add_library(bottlenose_camera_driver SHARED
-        src/bottlenose_camera_driver.cpp)
+        src/bottlenose_camera_driver.cpp
+        src/calibration_parser.cpp
+        )
 target_compile_definitions(bottlenose_camera_driver
   PRIVATE "COMPOSITION_BUILDING_DLL")
 target_include_directories(bottlenose_camera_driver

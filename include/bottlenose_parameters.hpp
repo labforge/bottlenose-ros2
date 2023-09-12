@@ -27,11 +27,19 @@ typedef struct {
   const rclcpp::ParameterValue & default_value;
 } parameter_t;
 
+typedef enum {
+  MODE_MONO,
+  MODE_STEREO,
+  MODE_DEPTH,
+  /* MODE_RGBD: FIXME: as soon as the FW update rolls in for this */
+} camera_mode_t;
+
 const parameter_t bottlenose_parameters[] = {
   {"frame_id", rclcpp::ParameterValue("camera")},
-  {"format", rclcpp::ParameterValue("1920x1440")},
+  {"camera_calibration_file", rclcpp::ParameterValue("package://bottlenose_camera_driver/config/camera.yaml")},
   {"mac_address", rclcpp::ParameterValue("00:00:00:00:00:00")},
   {"keep_partial", rclcpp::ParameterValue(false)},
+  {"mode", rclcpp::ParameterValue(0)},
   /* Device parameters */
   {"fps", rclcpp::ParameterValue(20.0)},
   {"exposure", rclcpp::ParameterValue(20.0)},
