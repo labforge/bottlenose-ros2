@@ -50,19 +50,19 @@ ros2 run image_view image_view --ros-args --remap /image:=/image_raw
 | ***Image Sensor(s) Controls***          | (**)                                                                          |                         |                      |
 | ```exposure```                          | Exposure time in milliseconds                                                 | ```20```                | :heavy_check_mark:   |
 | ```gain```                              | Analog gain                                                                   | ```1.0```               | :heavy_check_mark:   |
-| ```dGainBlue```                         | Digital gain for blue pixels in Bayer array                                   | ```4200```              | :heavy_check_mark:   |
-| ```dgainGB```                           | Digital gain for green-blue pixels in Bayer array                             | ```4200```              | :heavy_check_mark:   |
-| ```dgainGR```                           | Digital gain for green-red pixels in Bayer array                              | ```4200```              | :heavy_check_mark:   |
-| ```dGainRed```                          | Digital gain for red pixels in Bayer array                                    | ```4200```              | :heavy_check_mark:   |
+| ```dGainBlue```                         | Digital gain for blue pixels in Bayer array                                   | ```1024```              | :heavy_check_mark:   |
+| ```dgainGB```                           | Digital gain for green-blue pixels in Bayer array                             | ```1024```              | :heavy_check_mark:   |
+| ```dgainGR```                           | Digital gain for green-red pixels in Bayer array                              | ```1024```              | :heavy_check_mark:   |
+| ```dGainRed```                          | Digital gain for red pixels in Bayer array                                    | ```1024q```             | :heavy_check_mark:   |
 | **Image Processing Controls**           |                                                                               |                         |                      |
 | ```gamma```                             | Gamma correction of the image                                                 | ```2.2```               | :heavy_check_mark:   |
 | ```wbBlue```                            | White balance for blue component                                              | ```1.0```               | :heavy_check_mark:   |
 | ```wbGreen```                           | White balance for green component                                             | ```1.0```               | :heavy_check_mark:   |
 | ```wbRed```                             | White balance for red component                                               | ```1.0```               | :heavy_check_mark:   |
 | ```blackBlue```                         | Black level for blue pixels in Bayer array                                    | ```4200```              | :heavy_check_mark:  |
-| ```blackGB```                           | Black level for green-blue pixels in Bayer array                              | ```4200```               | :heavy_check_mark:  |
-| ```blackGR```                           | Black level for green-red pixels in Bayer array                               | ```4200```               | :heavy_check_mark:  |
-| ```blackRed```                          | Black level for red pixels in Bayer array                                     | ```4200```               | :heavy_check_mark:  |
+| ```blackGB```                           | Black level for green-blue pixels in Bayer array                              | ```4200```              | :heavy_check_mark:  |
+| ```blackGR```                           | Black level for green-red pixels in Bayer array                               | ```4200```              | :heavy_check_mark:  |
+| ```blackRed```                          | Black level for red pixels in Bayer array                                     | ```4200```              | :heavy_check_mark:  |
 
 | **Color Correction Controls**           |                                                                               |                         |                      |
 | ```CCMColorProfile```                   | Color correction profile preset                                               | ```IndoorWarmLightCurtainOpen``` | :x:         |
