@@ -55,11 +55,12 @@ namespace bottlenose_camera_driver {
      * @param buffer Buffer received on GEV interface
      * @return ROS2 message
      */
-    std::shared_ptr<sensor_msgs::msg::Image> convertFrameToMessage(PvBuffer *buffer);
+    std::shared_ptr<sensor_msgs::msg::Image> convertFrameToMessage(IPvImage *image, uint64_t timestamp);
 
     bool set_interval();                  ///< Set camera frame rate.
     bool set_format();                    ///< Set camera format.
     bool set_ccm_profile();               ///< Apply color profile
+    bool set_stereo();                    ///< Apply stereo setting if set
     bool update_runtime_parameters();     ///< Update runtime parameters from ROS2 parameters.
     bool connect();                       ///< Connect to camera.
     void disconnect();                    ///< Disconnect from camera.
@@ -75,8 +76,10 @@ namespace bottlenose_camera_driver {
     PvStreamGEV *m_stream;                ///< GEV stream handle.
 
     std::string m_mac_address;            ///< Mac address of camera to connect to.
-    /// Image message to publish.
+    /// Image message to publish for mono or left sensor
     std::shared_ptr<sensor_msgs::msg::Image> m_image_msg;
+    /// Image message to publish for stereo right sensor
+    std::shared_ptr<sensor_msgs::msg::Image> m_image_msg_1;
 
     /// Camera parameter cache
     std::map<std::string, std::variant<int64_t, double, std::string>> m_camera_parameter_cache;
@@ -87,7 +90,8 @@ namespace bottlenose_camera_driver {
 
     std::shared_ptr<camera_info_manager::CameraInfoManager> m_cinfo_manager;
     /// Camera publisher.
-    image_transport::CameraPublisher m_camera_pub;
+    image_transport::CameraPublisher m_image_color;
+    image_transport::CameraPublisher m_image_color_1;
 };
 } // namespace bottlenose_camera_driver
 #endif //__BOTTLENOSE_CAMERA_DRIVER_HPP__

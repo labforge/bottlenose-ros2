@@ -66,7 +66,8 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bott
   }
 
   rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_default;
-  m_camera_pub = image_transport::create_camera_publisher(this, "image_raw", custom_qos_profile);
+  m_image_color = image_transport::create_camera_publisher(this, "image_color", custom_qos_profile);
+  m_image_color_1 = image_transport::create_camera_publisher(this, "image_color_1", custom_qos_profile);
 
   m_cinfo_manager = std::make_shared<camera_info_manager::CameraInfoManager>(this);
 
@@ -114,18 +115,14 @@ void CameraDriver::status_callback() {
   m_management_thread = std::thread(&CameraDriver::management_thread, this);
 }
 
-std::shared_ptr<sensor_msgs::msg::Image> CameraDriver::convertFrameToMessage(PvBuffer *buffer) {
-  if(buffer != nullptr) {
+std::shared_ptr<sensor_msgs::msg::Image> CameraDriver::convertFrameToMessage(IPvImage *image, uint64_t timestamp) {
+  if(image != nullptr) {
     std_msgs::msg::Header header_;
     sensor_msgs::msg::Image ros_image;
 
     // No image component, likely multipart
-    // FIXME: Add points and multipart options
-    PvImage *image = buffer->GetImage();
-    if(image == nullptr)
-      return nullptr;
-
     ros_image.header = header_;
+
     // Right now only YUV422_8 encoding, convert to rgb8 to support ROS2 "legacy" tooling
     if( image->GetPixelType() == PvPixelYUV422_8) {
       Mat m(image->GetHeight(), image->GetWidth(), CV_8UC2, image->GetDataPointer());
@@ -143,9 +140,9 @@ std::shared_ptr<sensor_msgs::msg::Image> CameraDriver::convertFrameToMessage(PvB
       return nullptr;
     }
 
-    // Timestamp from epoch conversion
-    uint64_t seconds = image->GetTimestamp() / 1e6; //useconds
-    uint64_t nanoseconds = (image->GetTimestamp() - seconds * 1e6) * 1e3; //nanoseconds
+    // Timestamp from epoch conversion (Test this)
+    uint64_t seconds = timestamp / 1e6; //useconds
+    uint64_t nanoseconds = (timestamp - seconds * 1e6) * 1e3; //nanoseconds
     ros_image.header.stamp.nanosec = nanoseconds;
     ros_image.header.stamp.sec = seconds;
     ros_image.header.frame_id = this->get_parameter("frame_id").as_string();
@@ -310,6 +307,23 @@ bool CameraDriver::set_ccm_profile() {
     return false;
 }
 
+bool CameraDriver::set_stereo() {
+    bool enable_stereo = get_parameter("stereo").as_bool();
+    PvGenBoolean *multipart = dynamic_cast<PvGenBoolean *>( m_device->GetParameters()->Get("GevSCCFGMultiPartEnabled"));
+    if(multipart == nullptr) {
+        RCLCPP_ERROR(get_logger(), "Could not configure stereo");
+        return false;
+    }
+
+    PvResult res = multipart->SetValue(enable_stereo);
+    if(!res.IsOK())
+        RCLCPP_ERROR_STREAM(get_logger(), "Could not configure stereo, cause: " << res.GetDescription().GetAscii());
+    else
+        RCLCPP_DEBUG_STREAM(get_logger(), "Configured stereo to " << enable_stereo);
+
+    return res.IsOK();
+}
+
 bool CameraDriver::connect() {
   PvSystem sys = PvSystem();
   const PvDeviceInfo* pDevice;
@@ -454,6 +468,11 @@ void CameraDriver::management_thread() {
     done = true;
     return;
   }
+  if(!set_stereo()) {
+    disconnect();
+    done = true;
+    return;
+  }
   // Fail hard on first runtime parameter update issues
   if(!update_runtime_parameters()) {
     disconnect();
@@ -480,6 +499,7 @@ void CameraDriver::management_thread() {
     PvBuffer *buffer = nullptr;
     PvResult operationResult;
     PvResult res = m_stream->RetrieveBuffer(&buffer, &operationResult, timeout);
+    IPvImage *img0, *img1;
     if(res.IsOK()) {
       if(operationResult.IsOK() || (get_parameter("keep_partial").as_bool()
         && ((operationResult.GetCode() == PvResult::Code::TOO_MANY_RESENDS) ||
@@ -489,14 +509,15 @@ void CameraDriver::management_thread() {
           (operationResult.GetCode() == PvResult::Code::CORRUPTED_DATA)))) {
         switch ( buffer->GetPayloadType() ) {
           case PvPayloadTypeImage:
-            m_image_msg = convertFrameToMessage(buffer);
+            img0 = buffer->GetImage();
+            m_image_msg = convertFrameToMessage(img0, buffer->GetTimestamp());
 
             if(m_image_msg != nullptr) {
               RCLCPP_DEBUG(get_logger(), "Received Image %i x %i", buffer->GetImage()->GetWidth(), buffer->GetImage()->GetHeight());
               sensor_msgs::msg::CameraInfo::SharedPtr info_msg(
                   new sensor_msgs::msg::CameraInfo(m_cinfo_manager->getCameraInfo()));
               info_msg->header = m_image_msg->header;
-              m_camera_pub.publish(m_image_msg, info_msg);
+              m_image_color.publish(m_image_msg, info_msg);
             }
             break;
 
@@ -509,7 +530,25 @@ void CameraDriver::management_thread() {
             break;
 
           case PvPayloadTypeMultiPart:
-            RCLCPP_DEBUG_STREAM(get_logger(), "Multi Part with " << buffer->GetMultiPartContainer()->GetPartCount() << " parts");
+            img0 = buffer->GetMultiPartContainer()->GetPart(0)->GetImage();
+            img1 = buffer->GetMultiPartContainer()->GetPart(1)->GetImage();
+            m_image_msg = convertFrameToMessage(img0, buffer->GetTimestamp());
+            m_image_msg_1 = convertFrameToMessage(img1, buffer->GetTimestamp());
+
+            if(m_image_msg != nullptr) {
+                RCLCPP_DEBUG(get_logger(), "Received left Image %i x %i", buffer->GetImage()->GetWidth(), buffer->GetImage()->GetHeight());
+                sensor_msgs::msg::CameraInfo::SharedPtr info_msg(
+                        new sensor_msgs::msg::CameraInfo(m_cinfo_manager->getCameraInfo()));
+                info_msg->header = m_image_msg->header;
+                m_image_color.publish(m_image_msg, info_msg);
+            }
+            if(m_image_msg_1 != nullptr) {
+                RCLCPP_DEBUG(get_logger(), "Received Right Image %i x %i", buffer->GetImage()->GetWidth(), buffer->GetImage()->GetHeight());
+                sensor_msgs::msg::CameraInfo::SharedPtr info_msg(
+                        new sensor_msgs::msg::CameraInfo(m_cinfo_manager->getCameraInfo()));
+                info_msg->header = m_image_msg_1->header;
+                m_image_color_1.publish(m_image_msg_1, info_msg);
+            }
             break;
 
           default:

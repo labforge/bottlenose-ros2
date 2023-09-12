@@ -32,6 +32,7 @@ const parameter_t bottlenose_parameters[] = {
   {"format", rclcpp::ParameterValue("1920x1080")},
   {"mac_address", rclcpp::ParameterValue("00:00:00:00:00:00")},
   {"keep_partial", rclcpp::ParameterValue(false)},
+  {"stereo", rclcpp::ParameterValue(false)},
   /* Device parameters */
   {"fps", rclcpp::ParameterValue(10.0)},
   {"exposure", rclcpp::ParameterValue(20.0)},
