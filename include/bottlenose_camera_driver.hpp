@@ -59,7 +59,7 @@ namespace bottlenose_camera_driver {
 
     bool set_interval();                  ///< Set camera frame rate.
     bool set_format();                    ///< Set camera format.
-    bool apply_ccm();                     ///< Apply color correction matrix.
+    bool set_ccm_profile();               ///< Apply color profile
     bool update_runtime_parameters();     ///< Update runtime parameters from ROS2 parameters.
     bool connect();                       ///< Connect to camera.
     void disconnect();                    ///< Disconnect from camera.
