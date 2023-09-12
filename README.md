@@ -40,29 +40,29 @@ ros2 run image_view image_view --ros-args --remap /image:=/image_raw
 
 ### Available parameters
 
-| Parameter                               | Description                                                                   | Default                 | Run-time adjustable  |
-|-----------------------------------------|-------------------------------------------------------------------------------|-------------------------|----------------------|
+| Parameter                               | Description                                                                   | Default                | Run-time adjustable  |
+|-----------------------------------------|-------------------------------------------------------------------------------|------------------------|----------------------|
 | ```mac_address```                       | The MAC address of Bottlenose                                                 | ```00:00:00:00:00:00``` | :x:                  |
-| ```frame_id```                          | The frame_id embedded in image headers                                        | ```camera```            | :heavy_check_mark:   |
-| ```keep_partial```                      | Keep partial images (i.e. corrupted in transmission)                          | ```false```             | :heavy_check_mark:   |
-| ```format```                            | Format of the camera (*)                                                      | ```1920x1080```         | :x:                  |
-| ```fps```                               | Target frames per second (*)                                                  | ```10```                | :x:                  |
-| ***Image Sensor(s) Controls***          | (**)                                                                          |                         |                      |
-| ```exposure```                          | Exposure time in milliseconds                                                 | ```20```                | :heavy_check_mark:   |
-| ```gain```                              | Analog gain                                                                   | ```1.0```               | :heavy_check_mark:   |
-| ```dGainBlue```                         | Digital gain for blue pixels in Bayer array                                   | ```1024```              | :heavy_check_mark:   |
-| ```dgainGB```                           | Digital gain for green-blue pixels in Bayer array                             | ```1024```              | :heavy_check_mark:   |
-| ```dgainGR```                           | Digital gain for green-red pixels in Bayer array                              | ```1024```              | :heavy_check_mark:   |
-| ```dGainRed```                          | Digital gain for red pixels in Bayer array                                    | ```1024q```             | :heavy_check_mark:   |
-| **Image Processing Controls**           |                                                                               |                         |                      |
-| ```gamma```                             | Gamma correction of the image                                                 | ```2.2```               | :heavy_check_mark:   |
-| ```wbBlue```                            | White balance for blue component                                              | ```1.0```               | :heavy_check_mark:   |
-| ```wbGreen```                           | White balance for green component                                             | ```1.0```               | :heavy_check_mark:   |
-| ```wbRed```                             | White balance for red component                                               | ```1.0```               | :heavy_check_mark:   |
-| ```blackBlue```                         | Black level for blue pixels in Bayer array                                    | ```4200```              | :heavy_check_mark:  |
-| ```blackGB```                           | Black level for green-blue pixels in Bayer array                              | ```4200```              | :heavy_check_mark:  |
-| ```blackGR```                           | Black level for green-red pixels in Bayer array                               | ```4200```              | :heavy_check_mark:  |
-| ```blackRed```                          | Black level for red pixels in Bayer array                                     | ```4200```              | :heavy_check_mark:  |
+| ```frame_id```                          | The frame_id embedded in image headers                                        | ```camera```           | :heavy_check_mark:   |
+| ```keep_partial```                      | Keep partial images (i.e. corrupted in transmission)                          | ```false```            | :heavy_check_mark:   |
+| ```format```                            | Format of the camera (*)                                                      | ```1920x1080```        | :x:                  |
+| ```fps```                               | Target frames per second (*)                                                  | ```10```               | :x:                  |
+| ***Image Sensor(s) Controls***          | (**)                                                                          |                        |                      |
+| ```exposure```                          | Exposure time in milliseconds                                                 | ```20```               | :heavy_check_mark:   |
+| ```gain```                              | Analog gain                                                                   | ```1.0```              | :heavy_check_mark:   |
+| ```dGainBlue```                         | Digital gain for blue pixels in Bayer array                                   | ```1024```             | :heavy_check_mark:   |
+| ```dgainGB```                           | Digital gain for green-blue pixels in Bayer array                             | ```1024```             | :heavy_check_mark:   |
+| ```dgainGR```                           | Digital gain for green-red pixels in Bayer array                              | ```1024```             | :heavy_check_mark:   |
+| ```dGainRed```                          | Digital gain for red pixels in Bayer array                                    | ```1024```             | :heavy_check_mark:   |
+| **Image Processing Controls**           |                                                                               |                        |                      |
+| ```gamma```                             | Gamma correction of the image                                                 | ```2.2```              | :heavy_check_mark:   |
+| ```wbBlue```                            | White balance for blue component                                              | ```1.0```              | :heavy_check_mark:   |
+| ```wbGreen```                           | White balance for green component                                             | ```1.0```              | :heavy_check_mark:   |
+| ```wbRed```                             | White balance for red component                                               | ```1.0```              | :heavy_check_mark:   |
+| ```blackBlue```                         | Black level for blue pixels in Bayer array                                    | ```4200```             | :heavy_check_mark:  |
+| ```blackGB```                           | Black level for green-blue pixels in Bayer array                              | ```4200```             | :heavy_check_mark:  |
+| ```blackGR```                           | Black level for green-red pixels in Bayer array                               | ```4200```             | :heavy_check_mark:  |
+| ```blackRed```                          | Black level for red pixels in Bayer array                                     | ```4200```             | :heavy_check_mark:  |
 
 | **Color Correction Controls**           |                                                                               |                         |                      |
 | ```CCMColorProfile```                   | Color correction profile preset                                               | ```IndoorWarmLightCurtainOpen``` | :x:         |
