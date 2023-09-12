@@ -161,7 +161,11 @@ bool CameraDriver::update_runtime_parameters() {
     for(auto param : {"dgainBlue",
                       "dgainGB",
                       "dgainGR",
-                      "dgainRed"}) {
+                      "dgainRed",
+                      "blackBlue",
+                      "blackGB",
+                      "blackGR",
+                      "blackRed"}) {
         PvGenInteger *intval = static_cast<PvGenInteger *>( m_device->GetParameters()->Get(param));
         int64_t val = get_parameter(param).as_int();
         try {

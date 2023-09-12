@@ -59,6 +59,11 @@ ros2 run image_view image_view --ros-args --remap /image:=/image_raw
 | ```wbBlue```                            | White balance for blue component                                              | ```1.0```               | :heavy_check_mark:   |
 | ```wbGreen```                           | White balance for green component                                             | ```1.0```               | :heavy_check_mark:   |
 | ```wbRed```                             | White balance for red component                                               | ```1.0```               | :heavy_check_mark:   |
+| ```blackBlue```                         | Black level for blue pixels in Bayer array                                    | ```4200```              | :heavy_check_mark:  |
+| ```blackGB```                           | Black level for green-blue pixels in Bayer array                              | ```4200```               | :heavy_check_mark:  |
+| ```blackGR```                           | Black level for green-red pixels in Bayer array                               | ```4200```               | :heavy_check_mark:  |
+| ```blackRed```                          | Black level for red pixels in Bayer array                                     | ```4200```               | :heavy_check_mark:  |
+
 | **Color Correction Controls**           |                                                                               |                         |                      |
 | ```CCMColorProfile```                   | Color correction profile preset                                               | ```IndoorWarmLightCurtainOpen``` | :x:         |
 | **GigE Vision Stream Parameters**       |                                                                               |                         |                      |

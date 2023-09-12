@@ -49,6 +49,11 @@ const parameter_t bottlenose_parameters[] = {
   {"CCMColorProfile", rclcpp::ParameterValue("IndoorWarmLightCurtainOpen")},
   /* Reception timeout */
   {"Timeout", rclcpp::ParameterValue(5000)},
+  /* Black level controls */
+  {"blackBlue", rclcpp::ParameterValue(4200)},
+  {"blackGB", rclcpp::ParameterValue(4200)},
+  {"blackGR", rclcpp::ParameterValue(4200)},
+  {"blackRed", rclcpp::ParameterValue(4200)},
 
 //  /* Lens and extrinsic parameters -> not used FIXME: figure out ROS2 calibration files */
 //  {"Rectification", rclcpp::ParameterValue(false)},
