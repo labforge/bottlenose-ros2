@@ -23,9 +23,7 @@
 #include <memory>
 #include <string>
 #include <cassert>
-
 #include <list>
-
 
 #include <PvDevice.h>
 #include <PvStream.h>
@@ -128,7 +126,7 @@ std::shared_ptr<sensor_msgs::msg::Image> CameraDriver::convertFrameToMessage(PvB
       return nullptr;
 
     ros_image.header = header_;
-    // FIXME: Right now only YUV422_8 encoding, convert to rgb8 to support ROS2 "legacy" tooling
+    // Right now only YUV422_8 encoding, convert to rgb8 to support ROS2 "legacy" tooling
     if( image->GetPixelType() == PvPixelYUV422_8) {
       Mat m(image->GetHeight(), image->GetWidth(), CV_8UC2, image->GetDataPointer());
       Mat res;
@@ -158,57 +156,16 @@ std::shared_ptr<sensor_msgs::msg::Image> CameraDriver::convertFrameToMessage(PvB
   return nullptr;
 }
 
-bool CameraDriver::apply_ccm() {
-    if(get_parameter("custom_ccm").as_bool()) {
-        // Find CUSTOM CCM profile in sensor
-        PvGenEnum * custom = static_cast<PvGenEnum *>(m_device->GetParameters()->Get("CCMColorProfile"));
-        PvResult res = custom->SetValue("Custom");
-        if(res.IsFailure()) {
-            RCLCPP_ERROR(get_logger(), "Could not select custom CCM profile");
-            return false;
-        }
-        WAIT_PROPAGATE();
-        // Set custom CCM values
-        for(auto param : {"CCMValue00",
-                     "CCMValue01",
-                     "CCMValue02",
-                     "CCMValue10",
-                     "CCMValue11",
-                     "CCMValue12",
-                     "CCMValue20",
-                     "CCMValue21",
-                     "CCMValue22"}) {
-            PvGenFloat * ccm = static_cast<PvGenFloat *>(m_device->GetParameters()->Get(param));
-            res = ccm->SetValue(get_parameter(param).as_double());
-            if(res.IsFailure()) {
-                RCLCPP_ERROR(get_logger(), "Could not set %s", param);
-                return false;
-            }
-        }
-        WAIT_PROPAGATE();
-        PvGenCommand * apply = static_cast<PvGenCommand *>(m_device->GetParameters()->Get("SetCustomProfile"));
-        res = apply->Execute();
-        if(!res) {
-            RCLCPP_ERROR(get_logger(), "Could not apply custom CCM profile");
-            return false;
-        }
-        RCLCPP_DEBUG_STREAM(get_logger(), "Applied custom CCM profile");
-    }
-    return true;
-}
-
 bool CameraDriver::update_runtime_parameters() {
     // All integer parameters
-    for(auto param : {"blackBlue",
-                      "blackGB",
-                      "blackGR",
-                      "blackRed",
-                      "brightness",
-                      "linearContrast",
-                      "dgainBlue",
+    for(auto param : {"dgainBlue",
                       "dgainGB",
                       "dgainGR",
-                      "dgainRed"}) {
+                      "dgainRed",
+                      "blackBlue",
+                      "blackGB",
+                      "blackGR",
+                      "blackRed"}) {
         PvGenInteger *intval = static_cast<PvGenInteger *>( m_device->GetParameters()->Get(param));
         int64_t val = get_parameter(param).as_int();
         try {
@@ -220,7 +177,7 @@ bool CameraDriver::update_runtime_parameters() {
 
         PvResult res = intval->SetValue(val);
         if (res.IsFailure()) {
-            RCLCPP_WARN_STREAM(get_logger(), "Could not set parameter " << param << " to " << val);
+            RCLCPP_WARN_STREAM(get_logger(), "Could not set parameter " << param << " to " << val << " cause " << res.GetDescription().GetAscii());
             return false;
         }
         // Cache
@@ -228,11 +185,7 @@ bool CameraDriver::update_runtime_parameters() {
         RCLCPP_DEBUG_STREAM(get_logger(), "Set parameter " << param << " to " << val);
     }
 
-    for(auto param : {"blackGainBlue",
-            "blackGainGB",
-            "blackGainGR",
-            "blackGainRed",
-            "exposure",
+    for(auto param : {"exposure",
             "gain",
             "gamma",
             "wbBlue",
@@ -319,6 +272,42 @@ bool CameraDriver::set_format() {
   RCLCPP_DEBUG_STREAM(get_logger(), "Configured format to " << format);
 
   return true;
+}
+
+bool CameraDriver::set_ccm_profile() {
+    auto ccm_profile_str = get_parameter("CCMColorProfile").as_string();
+    PvGenEnum *colorProfile = dynamic_cast<PvGenEnum *>( m_device->GetParameters()->Get("CCMColorProfile"));
+    int64_t num_entries = 0;
+    PvResult res = colorProfile->GetEntriesCount(num_entries);
+    if(res.IsFailure()) {
+        RCLCPP_ERROR(get_logger(), "Could not enumerate sensor color profiles");
+        return false;
+    }
+    for(int64_t i = 0; i < num_entries; i++) {
+        const PvGenEnumEntry *entry = nullptr;
+        res = colorProfile->GetEntryByIndex(i, &entry);
+        if(res.IsFailure()) {
+            RCLCPP_ERROR(get_logger(), "Could not enumerate sensor color profiles");
+            return false;
+        }
+        PvString str;
+        res = entry->GetName(str);
+        if(res.IsFailure()) {
+            RCLCPP_ERROR(get_logger(), "Could not enumerate sensor color profiles");
+            return false;
+        }
+        if(ccm_profile_str == str.GetAscii()) {
+            res = colorProfile->SetValue(str);
+            if(res.IsFailure()) {
+                RCLCPP_ERROR(get_logger(), "Could not set sensor color profile");
+                return false;
+            }
+            RCLCPP_DEBUG_STREAM(get_logger(), "Set sensor color profile to " << str.GetAscii());
+            return true;
+        }
+    }
+    RCLCPP_ERROR_STREAM(get_logger(), "Invalid Color Profile: " << ccm_profile_str);
+    return false;
 }
 
 bool CameraDriver::connect() {
@@ -460,7 +449,7 @@ void CameraDriver::management_thread() {
     done = true;
     return;
   }
-  if(!apply_ccm()) {
+  if(!set_ccm_profile()) {
     disconnect();
     done = true;
     return;
@@ -468,6 +457,15 @@ void CameraDriver::management_thread() {
   // Fail hard on first runtime parameter update issues
   if(!update_runtime_parameters()) {
     disconnect();
+    done = true;
+    return;
+  }
+
+  int64_t timeout;
+  try {
+      timeout = get_parameter("Timeout").as_int();
+  } catch(exception & e) {
+    RCLCPP_ERROR(get_logger(), "Timeout parameter is not an integer");
     done = true;
     return;
   }
@@ -481,7 +479,7 @@ void CameraDriver::management_thread() {
   while(!m_terminate) {
     PvBuffer *buffer = nullptr;
     PvResult operationResult;
-    PvResult res = m_stream->RetrieveBuffer( &buffer, &operationResult);
+    PvResult res = m_stream->RetrieveBuffer(&buffer, &operationResult, timeout);
     if(res.IsOK()) {
       if(operationResult.IsOK() || (get_parameter("keep_partial").as_bool()
         && ((operationResult.GetCode() == PvResult::Code::TOO_MANY_RESENDS) ||
