@@ -206,7 +206,7 @@ bool CameraDriver::update_runtime_parameters() {
         m_camera_parameter_cache[param] = val;
         RCLCPP_DEBUG_STREAM(get_logger(), "Set parameter " << param << " to " << val);
     }
-    return true;
+    return set_ccm_profile();
 }
 
 bool CameraDriver::set_interval() {
@@ -273,6 +273,13 @@ bool CameraDriver::set_format() {
 
 bool CameraDriver::set_ccm_profile() {
     auto ccm_profile_str = get_parameter("CCMColorProfile").as_string();
+    try {
+        auto value = m_camera_parameter_cache.at("CCMColorProfile");
+        if(get<string>(value) == ccm_profile_str) {
+            return true;
+        }
+    } catch(std::out_of_range &e) { }
+
     PvGenEnum *colorProfile = dynamic_cast<PvGenEnum *>( m_device->GetParameters()->Get("CCMColorProfile"));
     int64_t num_entries = 0;
     PvResult res = colorProfile->GetEntriesCount(num_entries);
@@ -300,6 +307,7 @@ bool CameraDriver::set_ccm_profile() {
                 return false;
             }
             RCLCPP_DEBUG_STREAM(get_logger(), "Set sensor color profile to " << str.GetAscii());
+            m_camera_parameter_cache["CCMColorProfile"] = ccm_profile_str;
             return true;
         }
     }
@@ -459,11 +467,6 @@ void CameraDriver::management_thread() {
     return;
   }
   if(!set_interval()) {
-    disconnect();
-    done = true;
-    return;
-  }
-  if(!set_ccm_profile()) {
     disconnect();
     done = true;
     return;
