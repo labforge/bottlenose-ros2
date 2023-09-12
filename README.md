@@ -63,7 +63,6 @@ ros2 run image_view image_view --ros-args --remap /image:=/image_raw
 | ```blackGB```                           | Black level for green-blue pixels in Bayer array                              | ```4200```             | :heavy_check_mark:  |
 | ```blackGR```                           | Black level for green-red pixels in Bayer array                               | ```4200```             | :heavy_check_mark:  |
 | ```blackRed```                          | Black level for red pixels in Bayer array                                     | ```4200```             | :heavy_check_mark:  |
-
 | **Color Correction Controls**           |                                                                               |                         |                      |
 | ```CCMColorProfile```                   | Color correction profile preset                                               | ```IndoorWarmLightCurtainOpen``` | :x:         |
 | **GigE Vision Stream Parameters**       |                                                                               |                         |                      |
