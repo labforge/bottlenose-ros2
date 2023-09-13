@@ -98,6 +98,32 @@ bottlenose_camera_driver
  +-- camera_image_color_1    : Color image stream of Bottlenose camera (in case of Stereo of the right sensor, not supported for Mono models)
 ```
 
+### Common Mistakes
+
+#### Mac address not configured correctly
+ * No images will be sent by the driver, the driver will attempt to reconnect indefinitely, see this log line
+```
+[ERROR] [1694642295.072355485] [bottlenose_camera_driver]: Failed to find device 8C:1F:64:D0:E0:0F
+[ERROR] [1694642298.090279520] [bottlenose_camera_driver]: Failed to find device 8C:1F:64:D0:E0:0F
+```
+ * ***Workaround:*** Please set the appropriate MAC address in the launch file, please see product labelling
+
+#### Missing MAC address configuration in the launch file
+```
+[INFO] [1694642348.548832114] [bottlenose_camera_driver]: Bottlenose undefined please set mac_address
+```
+ * ***Workaround:*** Please set the appropriate MAC address in the launch file, please see product labelling
+
+#### eBusDriver not properly installed
+```
+[ERROR] [1694642437.179197654] [bottlenose_camera_driver]: The eBus Driver is not loaded, please reinstall the driver!
+``` 
+* The driver will attempt to stream from the sensor using the standard Linux network stack with degraded performance
+* ***Workaround***:
+    * Please make sure you **do not** install Linux with ***Secure Boot*** or ***UEFI*** enabled.
+    * Please reinstall the ***eBus SDK*** Debian package (see above) such that the kernel driver is reinstalled
+
+
 ## References
  * Bottlenose [Getting Started](https://docs.labforge.ca/docs/getting-started)
  * Bottlenose [SDK Demos](https://github.com/labforge/sdk-demos)
