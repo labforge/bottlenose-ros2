@@ -98,6 +98,43 @@ bottlenose_camera_driver
  +-- camera_image_color_1    : Color image stream of Bottlenose camera (in case of Stereo of the right sensor, not supported for Mono models)
 ```
 
+### Save topics in a bag
+```
+ros2 record image_color image_color_1
+```
+
+### Visualize message from a topic
+```
+ros2 topic echo /image_color
+```
+The message from the topic has the following signature:
+```yaml
+header:
+   stamp:
+      sec: 5867905
+      nanosec: 748000000
+   frame_id: camera
+height: 1080
+width: 1920
+encoding; rgb8
+is_bigendian: 0
+step: 5760
+data:
+- 20
+- 45
+- 30
+- 21
+- 47
+- 31
+- 24
+- 47
+- 30
+- '...'
+```
+
+The timestamp of the data is composed of two parts: the second and the nanosecond component. The full timestamp can be decoded as `timestamp = stamp[sec] + stamp[nanosec]*1e-9`. The timestamp of the message originates from the camera at the time the image is taken.
+
+
 ### Common Mistakes
 
 #### Mac address not configured correctly
