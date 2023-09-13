@@ -35,6 +35,8 @@ def generate_launch_description():
             executable='bottlenose_camera_driver_node',
             namespace='/camera',
             parameters=[
+                {"mac_address": "00:00:00:00:00:00"}, # <- Change this to the MAC address of your camera (see sticker)
+                {"stereo": True},                     # <- Comment this line out in case of a mono model
             ]
         )
     ])
