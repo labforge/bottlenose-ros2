@@ -71,6 +71,10 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bott
 
   m_cinfo_manager = std::make_shared<camera_info_manager::CameraInfoManager>(this);
 
+  if(!is_ebus_loaded()) {
+    RCLCPP_ERROR(get_logger(), "The eBus Driver is not loaded, please reinstall the driver!");
+  }
+
 //  /* get ROS2 config parameter for camera calibration file */
 //  auto camera_calibration_file_param_ = this->declare_parameter("camera_calibration_file", "file://config/camera.yaml");
 //  m_cinfo_manager->loadCameraInfo(camera_calibration_file_param_);
@@ -593,7 +597,26 @@ void CameraDriver::management_thread() {
 }
 
 bool CameraDriver::is_streaming() {
-    return !done && m_device != nullptr && m_stream != nullptr && m_stream->IsOpen();
+  return !done && m_device != nullptr && m_stream != nullptr && m_stream->IsOpen();
+}
+
+bool CameraDriver::is_ebus_loaded() {
+  char buffer[128];
+  std::string result = "";
+  FILE* pipe = popen("/usr/sbin/lsmod", "r");
+  if (!pipe)
+    return false;
+
+  try {
+    while (fgets(buffer, sizeof buffer, pipe) != NULL) {
+      result += buffer;
+    }
+  } catch (...) {
+    pclose(pipe);
+    return false;
+  }
+
+  return result.find("ebUniversalProForEthernet") != string::npos;
 }
 
 } // namespace bottlenose_camera_driver

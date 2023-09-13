@@ -68,6 +68,7 @@ namespace bottlenose_camera_driver {
     void abort_buffers();                 ///< Abort buffers for GEV stack.
     void management_thread();             ///< Management thread for interacting with GEV stack.
     void status_callback();               ///< ROS2 status callback and orchestration polled from a timer.
+    bool is_ebus_loaded();                ///< Check if the eBusSDK Driver is loaded.
 
     std::atomic<bool> done;               ///< Flag for management thread to terminate.
     std::thread m_thread;                 ///< Management thread handle.
