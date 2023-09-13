@@ -151,14 +151,14 @@ The timestamp of the data is composed of two parts: the second and the nanosecon
 ```
  * ***Workaround:*** Please set the appropriate MAC address in the launch file, please see product labelling
 
-#### eBusDriver not properly installed
+#### eBusDriver not properly installed or an automated kernel update removed it"
 ```
 [ERROR] [1694642437.179197654] [bottlenose_camera_driver]: The eBus Driver is not loaded, please reinstall the driver!
 ``` 
 * The driver will attempt to stream from the sensor using the standard Linux network stack with degraded performance
 * ***Workaround***:
     * Please make sure you **do not** install Linux with ***Secure Boot*** or ***UEFI*** enabled.
-    * Please reinstall the ***eBus SDK*** Debian package (see above) such that the kernel driver is reinstalled
+    * Please reinstall the ***eBus SDK*** Debian package (see above) such that the kernel driver is reinstalled after every kernel update
 
 
 ## References
