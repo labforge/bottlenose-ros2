@@ -30,6 +30,7 @@ from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
     return LaunchDescription([
+        # Bottlenose node
         Node(
             package='bottlenose_camera_driver',
             executable='bottlenose_camera_driver_node',
@@ -37,6 +38,8 @@ def generate_launch_description():
             parameters=[
                 {"mac_address": "00:00:00:00:00:00"}, # <- Change this to the MAC address of your camera (see sticker)
                 {"stereo": True},                     # <- Comment this line out in case of a mono model
+                # Add other parameters as needed, see README.md for details
             ]
-        )
+        ),
+        # Configure other nodes of the launch configuration as needed
     ])
