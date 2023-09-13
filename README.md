@@ -40,8 +40,9 @@ ros2 run image_view image_view --ros-args --remap /image:=/camera_image_color
 # View the right or stereo stream (not supported for Mono models, stereo:=true must be set, see above)
 ros2 run image_view image_view --ros-args --remap /image:=/camera_image_color_1
 ```
- * Stage your camera calibration file in your configuration as needed. If not provided, the camera driver will output 
-   non-rectified images.
+ * To perform a launch file, use the provided example launch file (please set ```mac_address``` to the MAC address of 
+   your camera in the launch file)
+   * ```ros2 launch bottlenose-ros2/launch/bottlenose_camera_node.launch.py``` 
 
 ### Available parameters
 
