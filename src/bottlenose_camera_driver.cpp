@@ -24,6 +24,7 @@
 #include <string>
 #include <cassert>
 #include <list>
+#include <filesystem>
 
 #include <PvDevice.h>
 #include <PvStream.h>
@@ -33,6 +34,7 @@
 
 #include "bottlenose_camera_driver.hpp"
 #include "bottlenose_parameters.hpp"
+#include <ament_index_cpp/get_package_share_directory.hpp>
 
 #define BUFFER_COUNT ( 16 )
 #define BUFFER_SIZE ( 3840 * 2160 * 3 ) // 4K UHD, YUV422 + ~1 image plane to account for chunk data
@@ -44,6 +46,7 @@ namespace bottlenose_camera_driver
   using namespace std::chrono_literals;
   using namespace std;
   using namespace cv;
+  namespace fs = std::filesystem;
 
 CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bottlenose_camera_driver", node_options)
 {
@@ -70,14 +73,32 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bott
   m_image_color_1 = image_transport::create_camera_publisher(this, "image_color_1", custom_qos_profile);
 
   m_cinfo_manager = std::make_shared<camera_info_manager::CameraInfoManager>(this);
+  m_left_cim = std::make_shared<camera_info_manager::CameraInfoManager>(this, "left_sensor");
+  m_right_cim = std::make_shared<camera_info_manager::CameraInfoManager>(this, "right_sensor");
 
   if(!is_ebus_loaded()) {
     RCLCPP_ERROR(get_logger(), "The eBus Driver is not loaded, please reinstall the driver!");
   }
 
-//  /* get ROS2 config parameter for camera calibration file */
-//  auto camera_calibration_file_param_ = this->declare_parameter("camera_calibration_file", "file://config/camera.yaml");
-//  m_cinfo_manager->loadCameraInfo(camera_calibration_file_param_);
+  //  /* get ROS2 config parameter for camera calibration file */
+  for(std::string fname:{"/config/camera.yaml", "/config/right_camera.yaml"}){
+    auto default_left_kfile = "file://" + ament_index_cpp::get_package_share_directory(this->get_name()) + fname;  
+    if(fs::exists(default_left_kfile)){
+      auto left_kfile_param = this->declare_parameter("left_camera_calibration_file", default_left_kfile);
+      m_left_cim->loadCameraInfo(left_kfile_param);
+      break;
+    }
+  }
+  auto default_right_kfile = "file://" + ament_index_cpp::get_package_share_directory(this->get_name()) + "/config/right_camera.yaml";
+  if(fs::exists(default_right_kfile)){
+    auto right_kfile_param = this->declare_parameter("right_camera_calibration_file", default_right_kfile);
+    m_right_cim->loadCameraInfo(right_kfile_param);
+  }
+  
+  /*bool loaded = m_cinfo_manager->loadCameraInfo(right_kfile_param_);
+
+  sensor_msgs::msg::CameraInfo::SharedPtr info_msg(
+                  new sensor_msgs::msg::CameraInfo(m_cinfo_manager->getCameraInfo()));*/
 
   m_timer = this->create_wall_timer(1ms, std::bind(&CameraDriver::status_callback, this));
 }

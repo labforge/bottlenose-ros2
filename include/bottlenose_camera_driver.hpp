@@ -69,6 +69,7 @@ namespace bottlenose_camera_driver {
     void management_thread();             ///< Management thread for interacting with GEV stack.
     void status_callback();               ///< ROS2 status callback and orchestration polled from a timer.
     bool is_ebus_loaded();                ///< Check if the eBusSDK Driver is loaded.
+    bool set_calibration_mono();
 
     std::atomic<bool> done;               ///< Flag for management thread to terminate.
     std::thread m_thread;                 ///< Management thread handle.
@@ -90,6 +91,8 @@ namespace bottlenose_camera_driver {
     std::thread m_management_thread;      ///< Management thread handle.
 
     std::shared_ptr<camera_info_manager::CameraInfoManager> m_cinfo_manager;
+    std::shared_ptr<camera_info_manager::CameraInfoManager> m_left_cim;
+    std::shared_ptr<camera_info_manager::CameraInfoManager> m_right_cim;
     /// Camera publisher.
     image_transport::CameraPublisher m_image_color;
     image_transport::CameraPublisher m_image_color_1;
