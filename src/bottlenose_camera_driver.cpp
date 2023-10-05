@@ -72,7 +72,6 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bott
   m_image_color = image_transport::create_camera_publisher(this, "image_color", custom_qos_profile);
   m_image_color_1 = image_transport::create_camera_publisher(this, "image_color_1", custom_qos_profile);
 
-  //m_cinfo_manager = std::make_shared<camera_info_manager::CameraInfoManager>(this);
   m_cinfo_manager[0] = std::make_shared<camera_info_manager::CameraInfoManager>(this);
   m_cinfo_manager[1] = std::make_shared<camera_info_manager::CameraInfoManager>(this);
 
@@ -632,7 +631,7 @@ bool CameraDriver::load_calibration(uint32_t num_sensors){
   std::string default_url;
   uint32_t count = 0;
 
-  for(std::string cname:{"camera", "left_camera"}){
+  for(std::string cname:{"left_camera", "camera"}){
     default_url = ament_index_cpp::get_package_share_directory(this->get_name()) + "/config/" + cname + ".yaml";      
     if(fs::exists(default_url)){
       std::string param = cname + "_calibration_file";
