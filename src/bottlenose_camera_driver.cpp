@@ -492,7 +492,7 @@ void CameraDriver::management_thread() {
   if(!set_calibration()){
     RCLCPP_WARN_STREAM(get_logger(), "Camera not calibrated!");
   }else{
-    RCLCPP_WARN_STREAM(get_logger(), "Camera calibrated!");
+    RCLCPP_INFO(get_logger(), "Camera calibrated!");
   }
 
   int64_t timeout;
