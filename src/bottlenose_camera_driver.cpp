@@ -740,8 +740,7 @@ static bool make_calibration_registers(uint32_t sid, sensor_msgs::msg::CameraInf
   double tvec[4] = {0.0};
   double rvec[3] = {0.0};
 
-  if(cam.distortion_model != "plumb_bob"){
-    RCLCPP_ERROR_STREAM(get_logger(), "Only Plumb_bob calibration model supported");
+  if(cam.distortion_model != "plumb_bob"){    
     return false;
   }
 
@@ -780,12 +779,14 @@ bool CameraDriver::set_calibration(){
   if(load_calibration(num_sensors)){
     for(uint32_t i = 0; i < num_sensors; ++i){
       if(!make_calibration_registers(i, m_cinfo_manager[i]->getCameraInfo(), kregisters)){
+        RCLCPP_ERROR_STREAM(get_logger(), "Only Plumb_bob calibration model supported!");
         return calibrated;
       }      
     }
 
     for(auto &kreg:kregisters){
       if(!set_register(kreg.first, kreg.second)){
+        RCLCPP_ERROR_STREAM(get_logger(), "Failed to set camera Register [" << kreg.first << "]");
         return calibrated;
       }      
     }
