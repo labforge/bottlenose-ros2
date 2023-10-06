@@ -25,6 +25,7 @@
 #include <string>
 #include <cassert>
 #include <list>
+#include <filesystem>
 
 #include <PvDevice.h>
 #include <PvStream.h>
@@ -47,6 +48,7 @@ namespace bottlenose_camera_driver
   using namespace std::chrono_literals;
   using namespace std;
   using namespace cv;
+  namespace fs = std::filesystem;
 
 CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bottlenose_camera_driver", node_options)
 {
@@ -639,16 +641,17 @@ bool CameraDriver::load_calibration(uint32_t sid, std::string cname){
   }
       
   if(this->has_parameter(param)){
-    kfile_param = this->get_parameter(param).as_string();
-    if(kfile_param.rfind(prefix, 0) != 0){
-      kfile_param = prefix + kfile_param;
-    } 
+    kfile_param = this->get_parameter(param).as_string();        
   }
   else{
     std::string default_url = prefix + ament_index_cpp::get_package_share_directory(this->get_name()) + "/config/" + cname + ".yaml";
     kfile_param = this->declare_parameter(param, default_url);      
   }
-
+  if(kfile_param.rfind(prefix, 0) != 0){
+    fs::path absolutePath = fs::absolute(kfile_param);
+    kfile_param = prefix + absolutePath.string();
+  }
+  
   if(!m_cinfo_manager[sid]){
     m_cinfo_manager[sid] = std::make_shared<camera_info_manager::CameraInfoManager>(this, cname, kfile_param);
   } else{
