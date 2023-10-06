@@ -16,6 +16,7 @@
 
 @file bottlenose_camera_driver.cpp Implementation of Bottlenose Camera Driver
 @author Thomas Reidemeister <thomas@labforge.ca>
+        G. M. Tchamgoue <martin@labforge.ca>  
 */
 
 #include <unistd.h>
@@ -24,7 +25,6 @@
 #include <string>
 #include <cassert>
 #include <list>
-#include <filesystem>
 
 #include <PvDevice.h>
 #include <PvStream.h>
@@ -39,14 +39,14 @@
 #define BUFFER_COUNT ( 16 )
 #define BUFFER_SIZE ( 3840 * 2160 * 3 ) // 4K UHD, YUV422 + ~1 image plane to account for chunk data
 #define WAIT_PROPAGATE() usleep(250 * 1000)
-
+#define LEFTCAM (0)
+#define RIGHTCAM (1)
 
 namespace bottlenose_camera_driver
 {
   using namespace std::chrono_literals;
   using namespace std;
   using namespace cv;
-  namespace fs = std::filesystem;
 
 CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bottlenose_camera_driver", node_options)
 {
@@ -72,14 +72,13 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bott
   m_image_color = image_transport::create_camera_publisher(this, "image_color", custom_qos_profile);
   m_image_color_1 = image_transport::create_camera_publisher(this, "image_color_1", custom_qos_profile);
 
-  m_cinfo_manager[0] = std::make_shared<camera_info_manager::CameraInfoManager>(this);
-  m_cinfo_manager[1] = std::make_shared<camera_info_manager::CameraInfoManager>(this);
+  //m_cinfo_manager[0] = std::make_shared<camera_info_manager::CameraInfoManager>(this);
+  //load_calibration(0, "camera");
+  //m_cinfo_manager[1] = std::make_shared<camera_info_manager::CameraInfoManager>(this);
 
   if(!is_ebus_loaded()) {
     RCLCPP_ERROR(get_logger(), "The eBus Driver is not loaded, please reinstall the driver!");
   }
-
-  load_calibration();
 
   m_timer = this->create_wall_timer(1ms, std::bind(&CameraDriver::status_callback, this));
 }
@@ -627,52 +626,37 @@ bool CameraDriver::is_ebus_loaded() {
   return result.find("ebUniversalProForEthernet") != string::npos;
 }
 
-bool CameraDriver::load_calibration(uint32_t num_sensors){  
-  std::string default_url;
-  uint32_t count = 0;
+bool CameraDriver::load_calibration(uint32_t sid, std::string cname){
+  std::string param = cname + "_calibration_file";
+  std::string kfile_param;
+  const std::string prefix("file://");
 
-  for(std::string cname:{"left_camera", "camera"}){
-    default_url = ament_index_cpp::get_package_share_directory(this->get_name()) + "/config/" + cname + ".yaml";      
-    if(fs::exists(default_url)){
-      std::string param = cname + "_calibration_file";
-      std::string left_kfile_param;
-
-      if(this->has_parameter(param)){
-        left_kfile_param = this->get_parameter(param).as_string();
-      }
-      else{
-        left_kfile_param = this->declare_parameter(param, "file://" + default_url);  
-      }
+  if((sid != LEFTCAM) && (sid != RIGHTCAM)){
+    return false;
+  }
+  if(cname.size() == 0){
+    return false;
+  }
       
-      m_cinfo_manager[0]->setCameraName(cname);
-      if(m_cinfo_manager[0]->loadCameraInfo(left_kfile_param)){
-        count += 1;
-        break;
-      }      
-    }
+  if(this->has_parameter(param)){
+    kfile_param = this->get_parameter(param).as_string();
+    if(kfile_param.rfind(prefix, 0) != 0){
+      kfile_param = prefix + kfile_param;
+    } 
+  }
+  else{
+    std::string default_url = prefix + ament_index_cpp::get_package_share_directory(this->get_name()) + "/config/" + cname + ".yaml";
+    kfile_param = this->declare_parameter(param, default_url);      
   }
 
-  if(num_sensors > 1){
-    default_url = ament_index_cpp::get_package_share_directory(this->get_name()) + "/config/right_camera.yaml";
-    if(fs::exists(default_url)){
-      std::string param = "right_camera_calibration_file";
-      std::string right_kfile_param;
-
-      if(this->has_parameter(param)){
-        right_kfile_param = this->get_parameter(param).as_string();
-      }
-      else{
-        right_kfile_param = this->declare_parameter(param, "file://" + default_url);  
-      }
-
-      m_cinfo_manager[1]->setCameraName("right_camera");
-      if(m_cinfo_manager[1]->loadCameraInfo(right_kfile_param)){
-        count += 1;
-      }
-    }
+  if(!m_cinfo_manager[sid]){
+    m_cinfo_manager[sid] = std::make_shared<camera_info_manager::CameraInfoManager>(this, cname, kfile_param);
+  } else{
+    m_cinfo_manager[sid]->setCameraName(cname);
+    m_cinfo_manager[sid]->loadCameraInfo(kfile_param);
   }
-
-  return (count == num_sensors);  
+  
+  return m_cinfo_manager[sid]->isCalibrated();  
 }
 
 uint32_t CameraDriver::get_num_sensors(){
@@ -776,7 +760,15 @@ bool CameraDriver::set_calibration(){
   bool calibrated = false;
   std::map<std::string, std::variant<int64_t, double, bool>> kregisters;
 
-  if(load_calibration(num_sensors)){
+  if(num_sensors == 1){
+    calibrated = load_calibration(LEFTCAM, "camera");
+  } else if(num_sensors == 2){
+    calibrated = load_calibration(LEFTCAM, "left_camera");
+    calibrated &= load_calibration(RIGHTCAM, "right_camera");
+  } 
+
+  if(calibrated){
+    calibrated = false;
     for(uint32_t i = 0; i < num_sensors; ++i){
       if(!make_calibration_registers(i, m_cinfo_manager[i]->getCameraInfo(), kregisters)){
         RCLCPP_ERROR_STREAM(get_logger(), "Only Plumb_bob calibration model supported!");

@@ -16,6 +16,7 @@
 
 @file bottlenose_camera_driver.hpp Definition of Bottlenose Camera Driver
 @author Thomas Reidemeister <thomas@labforge.ca>
+        G. M. Tchamgoue <martin@labforge.ca> 
 */
 #ifndef __BOTTLENOSE_CAMERA_DRIVER_HPP__
 #define __BOTTLENOSE_CAMERA_DRIVER_HPP__
@@ -70,7 +71,7 @@ namespace bottlenose_camera_driver {
     void status_callback();               ///< ROS2 status callback and orchestration polled from a timer.
     bool is_ebus_loaded();                ///< Check if the eBusSDK Driver is loaded.
 
-    bool load_calibration(uint32_t num=2);  ///< load calibration data
+    bool load_calibration(uint32_t sid, std::string cname); ///< load calibration data
     bool set_calibration();                 ///< set calibration on to camera
     uint32_t get_num_sensors();             ///< returns the number of sensors: 1=mono and 2=stereo    
     bool set_register(std::string, std::variant<int64_t, double, bool>); ///< set a register value on the camera
