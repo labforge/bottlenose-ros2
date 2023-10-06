@@ -771,14 +771,14 @@ bool CameraDriver::set_calibration(){
     calibrated = false;
     for(uint32_t i = 0; i < num_sensors; ++i){
       if(!make_calibration_registers(i, m_cinfo_manager[i]->getCameraInfo(), kregisters)){
-        RCLCPP_ERROR_STREAM(get_logger(), "Only Plumb_bob calibration model supported!");
+        RCLCPP_ERROR(get_logger(), "Only Plumb_bob calibration model supported!");
         return calibrated;
       }      
     }
 
     for(auto &kreg:kregisters){
       if(!set_register(kreg.first, kreg.second)){
-        RCLCPP_ERROR_STREAM(get_logger(), "Failed to set camera Register [" << kreg.first << "]");
+        RCLCPP_ERROR_STREAM(get_logger(), "Failed to set camera register [" << kreg.first << "]");
         return calibrated;
       }      
     }
@@ -786,6 +786,11 @@ bool CameraDriver::set_calibration(){
     if(set_register("saveCalibrationData", true)){            
       calibrated = set_register("Undistortion", true);
       if(num_sensors == 2) calibrated &= set_register("Rectification", true);
+      if(!calibrated){
+        RCLCPP_ERROR(get_logger(), "Failed to trigger Undistortion/Rectification mode on camera.");
+      }
+    } else{
+      RCLCPP_ERROR(get_logger(), "Failed to trigger calibration mode on camera.");
     }
   }
   
