@@ -64,6 +64,13 @@ jobs:
           source /opt/pleora/ebus_sdk/Ubuntu-22.04-x86_64/bin/set_puregev_env.sh
           cd driver
           colcon test
+          colcon test-result
+          cd ..
+      - name: Evaluate test results
+        if: failure()
+        run: |
+          cd driver
+          cat build/bottlenose_camera_driver/Testing/Temporary/LastTest.log
           cd ..
 
   build_foxy:
@@ -127,11 +134,11 @@ jobs:
             source install/local_setup.sh
             source /opt/pleora/ebus_sdk/Ubuntu-20.04-x86_64/bin/set_puregev_env.sh
             colcon test
+            colcon test-result
             cd ..
         - name: Evaluate test results
           if: failure()
           run: |
             cd driver
             cat build/bottlenose_camera_driver/Testing/Temporary/LastTest.log
-            colcon test-result
             cd ..
