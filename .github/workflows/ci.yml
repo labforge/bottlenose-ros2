@@ -112,7 +112,8 @@ jobs:
           run: |
             cd driver
             source /opt/ros/foxy/setup.sh
-            sudo rosdep install -i --from-path . --rosdistro foxy -y
+            rosdep update
+            rosdep install -i --from-path . --rosdistro foxy -y
             export _colcon_cd_root=$(pwd)
             colcon build --symlink-install
             source install/local_setup.sh
