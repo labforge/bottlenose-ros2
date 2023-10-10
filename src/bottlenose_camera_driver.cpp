@@ -752,8 +752,8 @@ static bool make_calibration_registers(uint32_t sid, sensor_msgs::msg::CameraInf
   kparams["ry" + id] = rvec[1];
   kparams["rz" + id] = rvec[2];
   
-  kparams["kWidth"] = cam.width;
-  kparams["kHeight"] = cam.height;
+  kparams["kWidth"] = (int64_t)cam.width;
+  kparams["kHeight"] = (int64_t)cam.height;
 
   return true;
 }
