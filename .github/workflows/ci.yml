@@ -126,5 +126,5 @@ jobs:
             export _colcon_cd_root=$(pwd)
             source install/local_setup.sh
             source /opt/pleora/ebus_sdk/Ubuntu-20.04-x86_64/bin/set_puregev_env.sh
-            colcon test
+            colcon test --output-on-failure
             cd ..
