@@ -82,11 +82,10 @@ jobs:
             sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
             echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
             sudo apt update
-            sudo apt install -y ros-foxy-desktop ros-dev-tools python3-rosdep ros-foxy-camera-info-manager \
-              ros-foxy-image-transport ros-foxy-camera-calibration-parsers
+            sudo apt install -y ros-dev-tools python3-rosdep 
             sudo rosdep init
             source /opt/ros/foxy/setup.bash
-            sudo rosdep update
+            sudo rosdep update --include-eol-distros -y
 
         - name: Check out Pleora SDK backing
           uses: actions/checkout@v3
@@ -113,7 +112,7 @@ jobs:
           run: |
             cd driver
             source /opt/ros/foxy/setup.sh
-            rosdep update
+            rosdep update --include-eol-distros -y
             rosdep install -i --from-path . --rosdistro foxy -y
             export _colcon_cd_root=$(pwd)
             colcon build --symlink-install
