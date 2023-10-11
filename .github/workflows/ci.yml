@@ -29,7 +29,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build_hil:
     runs-on: HIL
     steps:
       - name: Check out samples
@@ -64,4 +64,81 @@ jobs:
           source /opt/pleora/ebus_sdk/Ubuntu-22.04-x86_64/bin/set_puregev_env.sh
           cd driver
           colcon test
+          colcon test-result
           cd ..
+      - name: Evaluate test results
+        if: failure()
+        run: |
+          cd driver
+          cat build/bottlenose_camera_driver/Testing/Temporary/LastTest.log
+          cd ..
+
+  build_foxy:
+    runs-on: ubuntu-20.04
+    steps:
+        - name: Install OS dependencies
+          run: |
+            sudo apt-get update
+            sudo apt-get install -y build-essential libopencv-dev locales \
+              software-properties-common curl
+            sudo locale-gen en_US en_US.UTF-8
+            sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+            export LANG=en_US.UTF-8
+            sudo add-apt-repository universe
+            sudo apt update
+            sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
+            sudo apt update
+            sudo apt install -y ros-foxy-ros-base ros-dev-tools python3-rosdep 
+            sudo rosdep init
+            source /opt/ros/foxy/setup.bash
+            sudo rosdep update --include-eol-distros
+
+        - name: Check out Pleora SDK backing
+          uses: actions/checkout@v3
+          with:
+            repository: labforge/pleora_backing
+            lfs: true
+            token: ${{ secrets.CITOKEN }}
+            submodules: true
+            path: pleora
+
+        - name: Install Pleora 20.04 SDK
+          run: |
+            sudo dpkg -i pleora/eBUS_SDK_Ubuntu-20.04-x86_64-6.3.0-6343.deb
+            sudo apt-get install -f -y 
+
+        - name: Check out driver
+          uses: actions/checkout@v3
+          with:
+            lfs: true
+            submodules: true
+            path: driver
+
+        - name: Build ros2 driver for foxy
+          run: |
+            cd driver
+            source /opt/ros/foxy/setup.sh
+            rosdep update --include-eol-distros 
+            rosdep install -i --from-path . --rosdistro foxy -y
+            export _colcon_cd_root=$(pwd)
+            colcon build --symlink-install
+            source install/local_setup.sh
+            cd ..
+
+        - name: Test driver
+          run: |
+            cd driver
+            source /opt/ros/foxy/setup.sh
+            export _colcon_cd_root=$(pwd)
+            source install/local_setup.sh
+            source /opt/pleora/ebus_sdk/Ubuntu-20.04-x86_64/bin/set_puregev_env.sh
+            colcon test
+            colcon test-result
+            cd ..
+        - name: Evaluate test results
+          if: failure()
+          run: |
+            cd driver
+            cat build/bottlenose_camera_driver/Testing/Temporary/LastTest.log
+            cd ..
