@@ -16,6 +16,7 @@
 
 @file bottlenose_camera_driver.hpp Definition of Bottlenose Camera Driver
 @author Thomas Reidemeister <thomas@labforge.ca>
+        G. M. Tchamgoue <martin@labforge.ca> 
 */
 #ifndef __BOTTLENOSE_CAMERA_DRIVER_HPP__
 #define __BOTTLENOSE_CAMERA_DRIVER_HPP__
@@ -48,6 +49,7 @@ namespace bottlenose_camera_driver {
   public:
     explicit CameraDriver(const rclcpp::NodeOptions&);
     bool is_streaming();
+    bool isCalibrated();
     ~CameraDriver();
   private:
     /**
@@ -70,6 +72,12 @@ namespace bottlenose_camera_driver {
     void status_callback();               ///< ROS2 status callback and orchestration polled from a timer.
     bool is_ebus_loaded();                ///< Check if the eBusSDK Driver is loaded.
 
+    bool load_calibration(uint32_t sid, std::string cname); ///< load calibration data
+    bool set_calibration();                 ///< set calibration on to camera
+    uint32_t get_num_sensors();             ///< returns the number of sensors: 1=mono and 2=stereo    
+    bool set_register(std::string, std::variant<int64_t, double, bool>); ///< set a register value on the camera
+    bool m_calibrated;
+    
     std::atomic<bool> done;               ///< Flag for management thread to terminate.
     std::thread m_thread;                 ///< Management thread handle.
     bool m_terminate;                     ///< Flag to terminate management thread.
@@ -89,7 +97,8 @@ namespace bottlenose_camera_driver {
     rclcpp::TimerBase::SharedPtr m_timer; ///< Timer for status callback.
     std::thread m_management_thread;      ///< Management thread handle.
 
-    std::shared_ptr<camera_info_manager::CameraInfoManager> m_cinfo_manager;
+    std::shared_ptr<camera_info_manager::CameraInfoManager> m_cinfo_manager[2];
+    
     /// Camera publisher.
     image_transport::CameraPublisher m_image_color;
     image_transport::CameraPublisher m_image_color_1;

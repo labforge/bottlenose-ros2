@@ -103,6 +103,42 @@ namespace {
       GTEST_SKIP() << "No sensor to test against, skipping test";
     }
   }
+
+  TEST(CameraDrivcerTests, SetCalibration){
+    static atomic<bool> done(false);
+    const char*mac = getenv("BOTTLENOSE");
+    if(mac) {
+      // Start Bottlenose Camera Driver
+      rclcpp::NodeOptions options;
+      auto bottlenose_camera_driver = std::make_shared<bottlenose_camera_driver::CameraDriver>(options);
+      rclcpp::Parameter mac_param("mac_address", mac);
+      bottlenose_camera_driver->set_parameter(mac_param);
+
+      // Set calibration parameters      
+      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("camera_calibration_file", "../config/camera.yaml"));
+      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("left_camera_calibration_file", "../config/left_camera.yaml"));
+      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("right_camera_calibration_file", "../config/right_camera.yaml"));
+      
+      // Fire up ROS driver
+      rclcpp::executors::SingleThreadedExecutor exec;
+      exec.add_node(bottlenose_camera_driver);
+      std::thread spin_thread([&exec]() {
+        while(!done) {
+          exec.spin_once(100ms);
+        }
+      });
+
+      sleep(3);
+      
+      ASSERT_TRUE(bottlenose_camera_driver->is_streaming());
+      ASSERT_TRUE(bottlenose_camera_driver->isCalibrated());
+
+      done = true;
+      spin_thread.join();
+    } else {
+      GTEST_SKIP() << "No sensor to test against, skipping test";
+    }
+  }
 }
 
 int main(int argc, char** argv) {

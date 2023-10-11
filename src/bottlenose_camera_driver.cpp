@@ -16,6 +16,7 @@
 
 @file bottlenose_camera_driver.cpp Implementation of Bottlenose Camera Driver
 @author Thomas Reidemeister <thomas@labforge.ca>
+        G. M. Tchamgoue <martin@labforge.ca>  
 */
 
 #include <unistd.h>
@@ -24,6 +25,7 @@
 #include <string>
 #include <cassert>
 #include <list>
+#include <filesystem>
 
 #include <PvDevice.h>
 #include <PvStream.h>
@@ -33,17 +35,20 @@
 
 #include "bottlenose_camera_driver.hpp"
 #include "bottlenose_parameters.hpp"
+#include <ament_index_cpp/get_package_share_directory.hpp>
 
 #define BUFFER_COUNT ( 16 )
 #define BUFFER_SIZE ( 3840 * 2160 * 3 ) // 4K UHD, YUV422 + ~1 image plane to account for chunk data
 #define WAIT_PROPAGATE() usleep(250 * 1000)
-
+#define LEFTCAM (0)
+#define RIGHTCAM (1)
 
 namespace bottlenose_camera_driver
 {
   using namespace std::chrono_literals;
   using namespace std;
   using namespace cv;
+  namespace fs = std::filesystem;
 
 CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bottlenose_camera_driver", node_options)
 {
@@ -69,15 +74,11 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bott
   m_image_color = image_transport::create_camera_publisher(this, "image_color", custom_qos_profile);
   m_image_color_1 = image_transport::create_camera_publisher(this, "image_color_1", custom_qos_profile);
 
-  m_cinfo_manager = std::make_shared<camera_info_manager::CameraInfoManager>(this);
-
+  m_calibrated = false;
+  
   if(!is_ebus_loaded()) {
     RCLCPP_ERROR(get_logger(), "The eBus Driver is not loaded, please reinstall the driver!");
   }
-
-//  /* get ROS2 config parameter for camera calibration file */
-//  auto camera_calibration_file_param_ = this->declare_parameter("camera_calibration_file", "file://config/camera.yaml");
-//  m_cinfo_manager->loadCameraInfo(camera_calibration_file_param_);
 
   m_timer = this->create_wall_timer(1ms, std::bind(&CameraDriver::status_callback, this));
 }
@@ -487,6 +488,12 @@ void CameraDriver::management_thread() {
     return;
   }
 
+  if(!set_calibration()){
+    RCLCPP_WARN_STREAM(get_logger(), "Camera not calibrated!");
+  }else{
+    RCLCPP_INFO(get_logger(), "Camera calibrated!");
+  }
+
   int64_t timeout;
   try {
       timeout = get_parameter("Timeout").as_int();
@@ -522,7 +529,7 @@ void CameraDriver::management_thread() {
             if(m_image_msg != nullptr) {
               RCLCPP_DEBUG(get_logger(), "Received Image %i x %i", buffer->GetImage()->GetWidth(), buffer->GetImage()->GetHeight());
               sensor_msgs::msg::CameraInfo::SharedPtr info_msg(
-                  new sensor_msgs::msg::CameraInfo(m_cinfo_manager->getCameraInfo()));
+                  new sensor_msgs::msg::CameraInfo(m_cinfo_manager[0]->getCameraInfo()));
               info_msg->header = m_image_msg->header;
               m_image_color.publish(m_image_msg, info_msg);
             }
@@ -545,14 +552,14 @@ void CameraDriver::management_thread() {
             if(m_image_msg != nullptr) {
                 RCLCPP_DEBUG(get_logger(), "Received left Image %i x %i", buffer->GetImage()->GetWidth(), buffer->GetImage()->GetHeight());
                 sensor_msgs::msg::CameraInfo::SharedPtr info_msg(
-                        new sensor_msgs::msg::CameraInfo(m_cinfo_manager->getCameraInfo()));
+                        new sensor_msgs::msg::CameraInfo(m_cinfo_manager[0]->getCameraInfo()));
                 info_msg->header = m_image_msg->header;
                 m_image_color.publish(m_image_msg, info_msg);
             }
             if(m_image_msg_1 != nullptr) {
                 RCLCPP_DEBUG(get_logger(), "Received Right Image %i x %i", buffer->GetImage()->GetWidth(), buffer->GetImage()->GetHeight());
                 sensor_msgs::msg::CameraInfo::SharedPtr info_msg(
-                        new sensor_msgs::msg::CameraInfo(m_cinfo_manager->getCameraInfo()));
+                        new sensor_msgs::msg::CameraInfo(m_cinfo_manager[1]->getCameraInfo()));
                 info_msg->header = m_image_msg_1->header;
                 m_image_color_1.publish(m_image_msg_1, info_msg);
             }
@@ -617,6 +624,182 @@ bool CameraDriver::is_ebus_loaded() {
   }
 
   return result.find("ebUniversalProForEthernet") != string::npos;
+}
+
+bool CameraDriver::load_calibration(uint32_t sid, std::string cname){
+  std::string param = cname + "_calibration_file";
+  std::string kfile_param;
+  const std::string prefix("file://");
+
+  if((sid != LEFTCAM) && (sid != RIGHTCAM)){
+    return false;
+  }
+  if(cname.size() == 0){
+    return false;
+  }
+      
+  if(this->has_parameter(param)){
+    kfile_param = this->get_parameter(param).as_string();        
+  }
+  else{
+    std::string default_url = prefix + ament_index_cpp::get_package_share_directory(this->get_name()) + "/config/" + cname + ".yaml";
+    kfile_param = this->declare_parameter(param, default_url);      
+  }
+  if(kfile_param.rfind(prefix, 0) != 0){
+    fs::path absolutePath = fs::absolute(kfile_param);
+    kfile_param = prefix + absolutePath.string();
+  }
+  
+  if(!m_cinfo_manager[sid]){
+    m_cinfo_manager[sid] = std::make_shared<camera_info_manager::CameraInfoManager>(this, cname, kfile_param);
+  } else{
+    m_cinfo_manager[sid]->setCameraName(cname);
+    m_cinfo_manager[sid]->loadCameraInfo(kfile_param);
+  }
+  
+  return m_cinfo_manager[sid]->isCalibrated();  
+}
+
+uint32_t CameraDriver::get_num_sensors(){
+  PvGenParameter *lGenParameter = m_device->GetParameters()->Get("DeviceModelName");
+  PvString sensor_model;
+  PvResult res = dynamic_cast<PvGenString *>(lGenParameter)->GetValue(sensor_model);
+  uint32_t num_sensors = 0;
+  
+  if((res.IsOK()) && (sensor_model.GetLength() > 0)){
+      std::string model(sensor_model.GetAscii());                
+      num_sensors = (std::toupper(model.back()) != 'M') + 1;        
+  }           
+  
+  return num_sensors;
+}
+
+bool CameraDriver::set_register(std::string regname, std::variant<int64_t, double, bool> regvalue){
+  PvGenParameter *lGenParameter = m_device->GetParameters()->Get(regname.c_str());
+  PvGenType lGenType;
+  PvResult res = lGenParameter->GetType(lGenType);
+  if(!res.IsOK()) return false;
+
+  switch (lGenType){
+    case PvGenTypeInteger:
+      res = dynamic_cast<PvGenInteger *>(lGenParameter)->SetValue(std::get<int64_t>(regvalue));
+      break;
+    case PvGenTypeFloat:
+      res = dynamic_cast<PvGenFloat *>(lGenParameter)->SetValue(std::get<double>(regvalue));
+      break;
+    case PvGenTypeBoolean:
+      res = dynamic_cast<PvGenBoolean *>(lGenParameter)->SetValue(std::get<bool>(regvalue));
+      break;
+    case PvGenTypeCommand:
+      if(std::get<bool>(regvalue)){                
+          res = dynamic_cast<PvGenCommand *>(lGenParameter)->Execute();
+      }
+      break;
+    default:
+      return false;
+  }
+
+  return res.IsOK();
+}
+
+static void decompose_projection(double *pm, double *tvec, double *rvec){
+  if((pm == NULL) || (tvec == NULL) || (rvec == NULL)) return;
+    
+  cv::Mat P(3, 4, CV_64F, pm); //projection matrix
+  cv::Mat K(3, 3, CV_64F); // intrinsic parameter matrix
+  cv::Mat R(3, 3, CV_64F); // rotation matrix
+  cv::Mat T(4, 1, CV_64F, tvec); // translation vector
+  cv::Mat r(1, 3, CV_64F, rvec); // rotation vector
+
+  cv::decomposeProjectionMatrix(P, K, R, T);  
+  cv::Rodrigues(R, r);            
+  
+  for(uint32_t i = 0; i < 3; ++i){
+    tvec[i] /= tvec[3];
+  }                
+}
+
+static bool make_calibration_registers(uint32_t sid, sensor_msgs::msg::CameraInfo cam, 
+                                       std::map<std::string, std::variant<int64_t, double, bool>> &kparams){
+
+  double tvec[4] = {0.0};
+  double rvec[3] = {0.0};
+
+  if(cam.distortion_model != "plumb_bob"){    
+    return false;
+  }
+
+  decompose_projection(cam.p.data(), tvec, rvec);
+  std::string id = std::to_string(sid);
+
+  kparams["fx" + id] = cam.k[0];
+  kparams["fy" + id] = cam.k[4];
+  kparams["cx" + id] = cam.k[2];
+  kparams["cy" + id] = cam.k[5];
+  
+  kparams["k1" + id] = cam.d[0];
+  kparams["k2" + id] = cam.d[1];
+  kparams["k3" + id] = cam.d[4];  
+  kparams["p1" + id] = cam.d[2];
+  kparams["p2" + id] = cam.d[3];
+              
+  kparams["tx" + id] = tvec[0];
+  kparams["ty" + id] = tvec[1];
+  kparams["tz" + id] = tvec[2];          
+  kparams["rx" + id] = rvec[0];
+  kparams["ry" + id] = rvec[1];
+  kparams["rz" + id] = rvec[2];
+  
+  kparams["kWidth"] = (int64_t)cam.width;
+  kparams["kHeight"] = (int64_t)cam.height;
+
+  return true;
+}
+
+bool CameraDriver::set_calibration(){
+  uint32_t num_sensors = get_num_sensors();
+  m_calibrated = false;
+  std::map<std::string, std::variant<int64_t, double, bool>> kregisters;
+
+  if(num_sensors == 1){
+    m_calibrated = load_calibration(LEFTCAM, "camera");
+  } else if(num_sensors == 2){
+    m_calibrated = load_calibration(LEFTCAM, "left_camera");
+    m_calibrated &= load_calibration(RIGHTCAM, "right_camera");
+  } 
+
+  if(m_calibrated){
+    m_calibrated = false;
+    for(uint32_t i = 0; i < num_sensors; ++i){
+      if(!make_calibration_registers(i, m_cinfo_manager[i]->getCameraInfo(), kregisters)){
+        RCLCPP_ERROR(get_logger(), "Only Plumb_bob calibration model supported!");
+        return m_calibrated;
+      }      
+    }
+
+    for(auto &kreg:kregisters){
+      if(!set_register(kreg.first, kreg.second)){
+        RCLCPP_ERROR_STREAM(get_logger(), "Failed to set camera register [" << kreg.first << "]");
+        return m_calibrated;
+      }      
+    }
+
+    if(set_register("saveCalibrationData", true)){            
+      m_calibrated = set_register("Undistortion", true);
+      if(num_sensors == 2) m_calibrated &= set_register("Rectification", true);
+      if(!m_calibrated){
+        RCLCPP_ERROR(get_logger(), "Failed to trigger Undistortion/Rectification mode on camera.");
+      }
+    } else{
+      RCLCPP_ERROR(get_logger(), "Failed to trigger calibration mode on camera.");
+    }
+  }
+  
+  return m_calibrated;
+}
+
+bool CameraDriver::isCalibrated(){
+  return m_calibrated;
 }
 
 } // namespace bottlenose_camera_driver
