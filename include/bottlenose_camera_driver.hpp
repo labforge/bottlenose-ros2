@@ -49,6 +49,7 @@ namespace bottlenose_camera_driver {
   public:
     explicit CameraDriver(const rclcpp::NodeOptions&);
     bool is_streaming();
+    bool isCalibrated();
     ~CameraDriver();
   private:
     /**
@@ -75,6 +76,7 @@ namespace bottlenose_camera_driver {
     bool set_calibration();                 ///< set calibration on to camera
     uint32_t get_num_sensors();             ///< returns the number of sensors: 1=mono and 2=stereo    
     bool set_register(std::string, std::variant<int64_t, double, bool>); ///< set a register value on the camera
+    bool m_calibrated;
     
     std::atomic<bool> done;               ///< Flag for management thread to terminate.
     std::thread m_thread;                 ///< Management thread handle.

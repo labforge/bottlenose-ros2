@@ -74,10 +74,8 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bott
   m_image_color = image_transport::create_camera_publisher(this, "image_color", custom_qos_profile);
   m_image_color_1 = image_transport::create_camera_publisher(this, "image_color_1", custom_qos_profile);
 
-  //m_cinfo_manager[0] = std::make_shared<camera_info_manager::CameraInfoManager>(this);
-  //load_calibration(0, "camera");
-  //m_cinfo_manager[1] = std::make_shared<camera_info_manager::CameraInfoManager>(this);
-
+  m_calibrated = false;
+  
   if(!is_ebus_loaded()) {
     RCLCPP_ERROR(get_logger(), "The eBus Driver is not loaded, please reinstall the driver!");
   }
@@ -760,36 +758,36 @@ static bool make_calibration_registers(uint32_t sid, sensor_msgs::msg::CameraInf
 
 bool CameraDriver::set_calibration(){
   uint32_t num_sensors = get_num_sensors();
-  bool calibrated = false;
+  m_calibrated = false;
   std::map<std::string, std::variant<int64_t, double, bool>> kregisters;
 
   if(num_sensors == 1){
-    calibrated = load_calibration(LEFTCAM, "camera");
+    m_calibrated = load_calibration(LEFTCAM, "camera");
   } else if(num_sensors == 2){
-    calibrated = load_calibration(LEFTCAM, "left_camera");
-    calibrated &= load_calibration(RIGHTCAM, "right_camera");
+    m_calibrated = load_calibration(LEFTCAM, "left_camera");
+    m_calibrated &= load_calibration(RIGHTCAM, "right_camera");
   } 
 
-  if(calibrated){
-    calibrated = false;
+  if(m_calibrated){
+    m_calibrated = false;
     for(uint32_t i = 0; i < num_sensors; ++i){
       if(!make_calibration_registers(i, m_cinfo_manager[i]->getCameraInfo(), kregisters)){
         RCLCPP_ERROR(get_logger(), "Only Plumb_bob calibration model supported!");
-        return calibrated;
+        return m_calibrated;
       }      
     }
 
     for(auto &kreg:kregisters){
       if(!set_register(kreg.first, kreg.second)){
         RCLCPP_ERROR_STREAM(get_logger(), "Failed to set camera register [" << kreg.first << "]");
-        return calibrated;
+        return m_calibrated;
       }      
     }
 
     if(set_register("saveCalibrationData", true)){            
-      calibrated = set_register("Undistortion", true);
-      if(num_sensors == 2) calibrated &= set_register("Rectification", true);
-      if(!calibrated){
+      m_calibrated = set_register("Undistortion", true);
+      if(num_sensors == 2) m_calibrated &= set_register("Rectification", true);
+      if(!m_calibrated){
         RCLCPP_ERROR(get_logger(), "Failed to trigger Undistortion/Rectification mode on camera.");
       }
     } else{
@@ -797,7 +795,11 @@ bool CameraDriver::set_calibration(){
     }
   }
   
-  return calibrated;
+  return m_calibrated;
+}
+
+bool CameraDriver::isCalibrated(){
+  return m_calibrated;
 }
 
 } // namespace bottlenose_camera_driver
