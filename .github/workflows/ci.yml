@@ -104,10 +104,14 @@ jobs:
           name: build
           path: compiled
 
-      - name: Power on CI
+      - name: Power on stereo CI
         uses: ./.github/workflows/ci/power
         with:
           state: 'on'
+
+      - name: Bypass stereo debugger hold and force sensor to run
+        run: |
+          openocd -f interface/ftdi/flyswatter2.cfg -c "adapter speed 10000" -f board/labforge_bottlenose2.cfg -c "reset run" -c "exit"
 
       - name: "Download latest firmware"
         uses: robinraju/release-downloader@v1.8
@@ -141,7 +145,14 @@ jobs:
       - name: Power off CI
         uses: ./.github/workflows/ci/power
         with:
+          if: always()
           state: 'off'
+
+      - name: Clear artifact cache
+        if: always()
+        run: |
+          rm -rf firmware || true
+          rm -rf compiled || true
 
   build_foxy:
     runs-on: ubuntu-20.04
