@@ -56,7 +56,7 @@ jobs:
           cd ..
           source install/local_setup.sh
 
-      - name: Test driver
+      - name: Test ROS tests
         run: |
           source /opt/ros/humble/setup.sh
           export _colcon_cd_root=$(pwd)
@@ -66,15 +66,70 @@ jobs:
           colcon test
           colcon test-result
           cd ..
-          # Check that the integration test was build
-          ./build/bottlenose_camera_driver/test_integration
-          
+
       - name: Evaluate test results
         if: failure()
         run: |
           cd driver
           cat build/bottlenose_camera_driver/Testing/Temporary/LastTest.log
           cd ..
+          
+      - name: Upload ros artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: build
+          path: |
+            build
+            install
+
+  test_hil:
+    runs-on: HIL
+    needs: [ build_hil ]
+    steps:
+      - name: Check out CI helpers
+        uses: actions/checkout@v3
+        with:
+          repository: labforge/ContinousIntegration
+          token: ${{ secrets.CITOKEN }}
+          path: .github/workflows/ci
+
+      - name: Power off CI
+        uses: ./.github/workflows/ci/power
+        with:
+          state: 'off'
+
+      - name: "Download build artifact"
+        uses: actions/download-artifact@v3
+        with:
+          name: build
+          path: compiled
+
+      - name: Power on CI
+        uses: ./.github/workflows/ci/power
+        with:
+          state: 'on'
+
+      - name: "Download latest firmware"
+        uses: robinraju/release-downloader@v1.8
+        with:
+          repository: "labforge/bottlenose"
+          latest: true
+          fileName: "firmware-bottlenose.tar"
+          tarBall: false
+          zipBall: false
+          out-file-path: "firmware"
+
+      - name: Check that the firmware exists
+        run: |
+          if [ ! -f firmware/firmware-bottlenose.tar ]; then
+            echo "Firmware not found"
+            exit 1
+          fi
+
+      - name: Power off CI
+        uses: ./.github/workflows/ci/power
+        with:
+          state: 'off'
 
   build_foxy:
     runs-on: ubuntu-20.04
