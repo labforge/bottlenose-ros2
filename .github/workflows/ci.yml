@@ -152,6 +152,8 @@ jobs:
         uses: ./.github/workflows/ci/power
         with:
           state: 'on'
+      - name: Find Bottlenose sensor
+        uses: ./.github/workflows/ci/find
 
       - name: Run integration tests
         run: |
