@@ -66,6 +66,9 @@ jobs:
           colcon test
           colcon test-result
           cd ..
+          # Check that the integration test was build
+          ./build/bottlenose_camera_driver/test_integration
+          
       - name: Evaluate test results
         if: failure()
         run: |

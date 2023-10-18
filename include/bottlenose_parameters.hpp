@@ -99,6 +99,11 @@ const parameter_t bottlenose_parameters[] = {
   {"ResendRequestTimeout", rclcpp::ParameterValue(100)},
   {"RequestTimeout", rclcpp::ParameterValue(10000)},
   {"ResetOnIdle", rclcpp::ParameterValue(2000)},
+
+  /* Calibration file parameters */
+  {"camera_calibration_file", rclcpp::ParameterValue("")},
+  {"left_camera_calibration_file", rclcpp::ParameterValue("")},
+  {"right_camera_calibration_file", rclcpp::ParameterValue("")},
 };
 
 #endif // __BOTTLENOSE_PARAMETERS_HPP__

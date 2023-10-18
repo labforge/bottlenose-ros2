@@ -21,6 +21,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "bottlenose_camera_driver.hpp"
 #include <gtest/gtest.h>
+#include <ament_index_cpp/get_package_share_directory.hpp>
 
 namespace {
   using namespace std;
@@ -50,13 +51,14 @@ namespace {
         }
       });
       sleep(3);
-      ASSERT_TRUE(bottlenose_camera_driver->is_streaming());
       done = true;
       spin_thread.join();
+      sleep(1);
+      ASSERT_TRUE(bottlenose_camera_driver->is_streaming());
 
     } else {
       // No sensor to test against, smoke test
-      rclcpp::init(0, nullptr);
+//      rclcpp::init(0, nullptr);
       rclcpp::NodeOptions options;
       auto bottlenose_camera_driver = std::make_shared<bottlenose_camera_driver::CameraDriver>(options);
     }
@@ -65,7 +67,7 @@ namespace {
   /**
    * Test that the driver can be initialized with a custom CCM.
    */
-  TEST(CameraDrivcerTests, TestCustomCCM) {
+  TEST(CameraDrivcerTests, TestCCMSwitch) {
     static atomic<bool> done(false);
     const char*mac = getenv("BOTTLENOSE");
     if(mac) {
@@ -75,30 +77,22 @@ namespace {
       rclcpp::Parameter mac_param("mac_address", mac);
       bottlenose_camera_driver->set_parameter(mac_param);
 
-      // Set custom CCM parameters
-      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("custom_ccm", true));
-      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("CCMValue00", 0.5));
-      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("CCMValue01", 0.0));
-      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("CCMValue02", 0.0));
-      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("CCMValue10", 0.0));
-      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("CCMValue11", 0.5));
-      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("CCMValue12", 0.0));
-      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("CCMValue20", 0.0));
-      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("CCMValue21", 0.0));
-      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("CCMValue22", 0.5));
+      // Set CCM parameters
+      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("CCMColorProfile", "IndoorWarmLightCurtainClose"));
 
       // Fire up ROS driver
       rclcpp::executors::SingleThreadedExecutor exec;
       exec.add_node(bottlenose_camera_driver);
-      std::thread spin_thread([&exec]() {
+      std::thread spin_thread([&exec, &bottlenose_camera_driver]() {
         while(!done) {
           exec.spin_once(100ms);
         }
       });
       sleep(3);
-      ASSERT_TRUE(bottlenose_camera_driver->is_streaming());
       done = true;
       spin_thread.join();
+      sleep(1);
+      ASSERT_TRUE(bottlenose_camera_driver->is_streaming());
     } else {
       GTEST_SKIP() << "No sensor to test against, skipping test";
     }
@@ -114,10 +108,11 @@ namespace {
       rclcpp::Parameter mac_param("mac_address", mac);
       bottlenose_camera_driver->set_parameter(mac_param);
 
-      // Set calibration parameters      
-      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("camera_calibration_file", "../config/camera.yaml"));
-      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("left_camera_calibration_file", "../config/left_camera.yaml"));
-      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("right_camera_calibration_file", "../config/right_camera.yaml"));
+      // Set calibration parameters
+      string prefix = ament_index_cpp::get_package_share_directory(bottlenose_camera_driver->get_name()) + "/config/";
+      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("camera_calibration_file", prefix+"camera.yaml"));
+      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("left_camera_calibration_file", prefix+"left_camera.yaml"));
+      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("right_camera_calibration_file", prefix+"right_camera.yaml"));
       
       // Fire up ROS driver
       rclcpp::executors::SingleThreadedExecutor exec;
@@ -127,14 +122,15 @@ namespace {
           exec.spin_once(100ms);
         }
       });
-
       sleep(3);
-      
+      sleep(3);
+      done = true;
+      spin_thread.join();
+      sleep(1);
+
       ASSERT_TRUE(bottlenose_camera_driver->is_streaming());
       ASSERT_TRUE(bottlenose_camera_driver->isCalibrated());
 
-      done = true;
-      spin_thread.join();
     } else {
       GTEST_SKIP() << "No sensor to test against, skipping test";
     }

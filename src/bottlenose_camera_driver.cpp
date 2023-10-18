@@ -638,12 +638,14 @@ bool CameraDriver::load_calibration(uint32_t sid, std::string cname){
     return false;
   }
       
-  if(this->has_parameter(param)){
+  if(this->get_parameter(param).as_string().length() > 0) {
     kfile_param = this->get_parameter(param).as_string();        
   }
   else{
     std::string default_url = prefix + ament_index_cpp::get_package_share_directory(this->get_name()) + "/config/" + cname + ".yaml";
-    kfile_param = this->declare_parameter(param, default_url);      
+    this->set_parameter(rclcpp::Parameter(param, default_url));
+    kfile_param = this->get_parameter(param).as_string();
+//    kfile_param = this->declare_parameter(param, default_url);
   }
   if(kfile_param.rfind(prefix, 0) != 0){
     fs::path absolutePath = fs::absolute(kfile_param);
