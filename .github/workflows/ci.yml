@@ -145,6 +145,7 @@ jobs:
           echo "Bottlenose IP:" ${BOTTLENOSE}
           source /opt/ros/humble/setup.sh
           source /opt/pleora/ebus_sdk/Ubuntu-22.04-x86_64/bin/set_puregev_env.sh
+          source install/local_setup.sh
           cd driver
           ./build/bottlenose_camera_driver/test_integration
           cd ..
