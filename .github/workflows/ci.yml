@@ -74,18 +74,7 @@ jobs:
           cat build/bottlenose_camera_driver/Testing/Temporary/LastTest.log
           cd ..
           
-      - name: Upload ros artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: build
-          path: |
-            build
-            install
 
-  test_hil:
-    runs-on: HIL
-    needs: [ build_hil ]
-    steps:
       - name: Check out CI helpers
         uses: actions/checkout@v3
         with:
@@ -97,12 +86,6 @@ jobs:
         uses: ./.github/workflows/ci/power
         with:
           state: 'off'
-
-      - name: "Download build artifact"
-        uses: actions/download-artifact@v3
-        with:
-          name: build
-          path: compiled
 
       - name: Checkout sdk utilities for ftp-based updater
         uses: actions/checkout@v3
@@ -160,11 +143,11 @@ jobs:
         run: |
           export BOTTLENOSE=$(cat /tmp/bottlenose.ip)
           echo "Bottlenose IP:" ${BOTTLENOSE}
-          cd compiled
           source /opt/ros/humble/setup.sh
           source /opt/pleora/ebus_sdk/Ubuntu-22.04-x86_64/bin/set_puregev_env.sh
-          chmod a+rwx ./build/bottlenose_camera_driver/test_integration
+          cd driver
           ./build/bottlenose_camera_driver/test_integration
+          cd ..
 
       - name: Power off CI
         uses: ./.github/workflows/ci/power
@@ -176,7 +159,6 @@ jobs:
         if: always()
         run: |
           rm -rf firmware || true
-          rm -rf compiled || true
           rm -rf demos || true
 
   build_foxy:
