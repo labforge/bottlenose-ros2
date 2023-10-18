@@ -104,15 +104,13 @@ jobs:
           name: build
           path: compiled
 
-      - name: Power on stereo CI
-        uses: ./.github/workflows/ci/power
+      - name: Checkout sdk utilities for ftp-based updater
+        uses: actions/checkout@v3
         with:
-          state: 'on'
-
-      - name: Bypass stereo debugger hold and force sensor to run
-        run: |
-          sleep 1
-          openocd -f interface/ftdi/flyswatter2.cfg -c "adapter speed 10000" -f board/labforge_bottlenose2.cfg -c "reset run" -c "exit"
+          lfs: true
+          repository: labforge/sdk-demos
+          token: ${{ secrets.CITOKEN }}
+          path: ./demos
 
       - name: "Download latest firmware"
         uses: robinraju/release-downloader@v1.8
@@ -124,16 +122,36 @@ jobs:
           zipBall: false
           out-file-path: "firmware"
 
+      - name: Power on mono CI
+        uses: ./.github/workflows/ci/power
+        with:
+          state: 'on'
+          channel: 1
+
       - name: Find Bottlenose sensor
         uses: ./.github/workflows/ci/find
 
-      # FIXME: FLASH firmware
-      - name: Check that the firmware exists
+      - name: Install utility requirements for updater and flash firware to mono
         run: |
-          if [ ! -f firmware/firmware-bottlenose.tar ]; then
-            echo "Firmware not found"
-            exit 1
-          fi
+          cd ./demos/utility/
+          rm -rf venv || true
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install -r requirements.txt
+          source /opt/pleora/ebus_sdk/Ubuntu-22.04-x86_64/bin/set_puregev_env.sh
+          python uploader.py -t firmware -i "$(</tmp/bottlenose.ip)" -f ./../../firmware/firmware-bottlenose.tar
+
+      - name: Power off CI for testing
+        uses: ./.github/workflows/ci/power
+        with:
+          state: 'off'
+      - name: Settle for power off
+        run: |
+          sleep 1
+      - name: Power on CI for testing
+        uses: ./.github/workflows/ci/power
+        with:
+          state: 'on'
 
       - name: Run integration tests
         run: |
@@ -154,6 +172,7 @@ jobs:
         run: |
           rm -rf firmware || true
           rm -rf compiled || true
+          rm -rf demos || true
 
   build_foxy:
     runs-on: ubuntu-20.04
