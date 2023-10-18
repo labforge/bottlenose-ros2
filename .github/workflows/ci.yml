@@ -152,6 +152,7 @@ jobs:
         uses: ./.github/workflows/ci/power
         with:
           state: 'on'
+          channel: 1
       - name: Find Bottlenose sensor
         uses: ./.github/workflows/ci/find
 
