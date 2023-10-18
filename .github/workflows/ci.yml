@@ -119,12 +119,24 @@ jobs:
           zipBall: false
           out-file-path: "firmware"
 
+      - name: Find Bottlenose sensor
+        uses: ./.github/workflows/ci/find
+
+      # FIXME: FLASH firmware
       - name: Check that the firmware exists
         run: |
           if [ ! -f firmware/firmware-bottlenose.tar ]; then
             echo "Firmware not found"
             exit 1
           fi
+
+      - name: Run integration tests
+        run: |
+          export BOTTLENOSE=$(cat /tmp/bottlenose.ip)
+          echo "Bottlenose IP:" ${BOTTLENOSE}
+          cd compiled
+          source /opt/ros/humble/setup.sh
+          ./build/bottlenose_camera_driver/test_integration
 
       - name: Power off CI
         uses: ./.github/workflows/ci/power
