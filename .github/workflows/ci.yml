@@ -56,7 +56,7 @@ jobs:
           cd ..
           source install/local_setup.sh
 
-      - name: Test driver
+      - name: Test ROS tests
         run: |
           source /opt/ros/humble/setup.sh
           export _colcon_cd_root=$(pwd)
@@ -66,12 +66,101 @@ jobs:
           colcon test
           colcon test-result
           cd ..
+
       - name: Evaluate test results
         if: failure()
         run: |
           cd driver
           cat build/bottlenose_camera_driver/Testing/Temporary/LastTest.log
           cd ..
+          
+
+      - name: Check out CI helpers
+        uses: actions/checkout@v3
+        with:
+          repository: labforge/ContinousIntegration
+          token: ${{ secrets.CITOKEN }}
+          path: .github/workflows/ci
+
+      - name: Power off CI
+        uses: ./.github/workflows/ci/power
+        with:
+          state: 'off'
+
+      - name: Checkout sdk utilities for ftp-based updater
+        uses: actions/checkout@v3
+        with:
+          lfs: true
+          repository: labforge/sdk-demos
+          token: ${{ secrets.CITOKEN }}
+          path: ./demos
+
+      - name: "Download latest firmware"
+        uses: robinraju/release-downloader@v1.8
+        with:
+          repository: "labforge/bottlenose"
+          latest: true
+          fileName: "firmware-bottlenose.tar"
+          tarBall: false
+          zipBall: false
+          out-file-path: "firmware"
+
+      - name: Power on mono CI
+        uses: ./.github/workflows/ci/power
+        with:
+          state: 'on'
+          channel: 1
+
+      - name: Find Bottlenose sensor
+        uses: ./.github/workflows/ci/find
+
+      - name: Install utility requirements for updater and flash firware to mono
+        run: |
+          cd ./demos/utility/
+          rm -rf venv || true
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install -r requirements.txt
+          source /opt/pleora/ebus_sdk/Ubuntu-22.04-x86_64/bin/set_puregev_env.sh
+          python uploader.py -t firmware -i "$(</tmp/bottlenose.ip)" -f ./../../firmware/firmware-bottlenose.tar
+
+      - name: Power off CI for testing
+        uses: ./.github/workflows/ci/power
+        with:
+          state: 'off'
+      - name: Settle for power off
+        run: |
+          sleep 1
+      - name: Power on CI for testing
+        uses: ./.github/workflows/ci/power
+        with:
+          state: 'on'
+          channel: 1
+      - name: Find Bottlenose sensor
+        uses: ./.github/workflows/ci/find
+
+      - name: Run integration tests
+        run: |
+          export BOTTLENOSE=$(cat /tmp/bottlenose.ip)
+          echo "Bottlenose IP:" ${BOTTLENOSE}
+          source /opt/ros/humble/setup.sh
+          source /opt/pleora/ebus_sdk/Ubuntu-22.04-x86_64/bin/set_puregev_env.sh
+          source install/local_setup.sh
+          cd driver
+          ./build/bottlenose_camera_driver/test_integration
+          cd ..
+
+      - name: Power off CI
+        uses: ./.github/workflows/ci/power
+        with:
+          if: always()
+          state: 'off'
+
+      - name: Clear artifact cache
+        if: always()
+        run: |
+          rm -rf firmware || true
+          rm -rf demos || true
 
   build_foxy:
     runs-on: ubuntu-20.04

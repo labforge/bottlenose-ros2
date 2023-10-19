@@ -47,41 +47,46 @@ ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p ma
 
 ### Default Parameters
 
-| Parameter                               | Description                                                                   | Default                          | Run-time adjustable |
-|-----------------------------------------|-------------------------------------------------------------------------------|----------------------------------|---------------------|
-| ```mac_address```                       | The MAC address of Bottlenose                                                 | ```00:00:00:00:00:00```          |                     |
-| ```frame_id```                          | The frame_id embedded in image headers                                        | ```camera```                     | :white_check_mark:  |
-| ```keep_partial```                      | Keep partial images (i.e. corrupted in transmission)                          | ```false```                      | :white_check_mark:  |
-| ```format```                            | Format of the camera (*)                                                      | ```1920x1080```                  |                     |
-| ```fps```                               | Target frames per second (*)                                                  | ```10.0```                       |                     |
-| ***Image Sensor(s) Controls***          | (**)                                                                          |                                  |                     |
-| ```exposure```                          | Exposure time in milliseconds                                                 | ```20.0```                       | :white_check_mark:  |
-| ```gain```                              | Analog gain                                                                   | ```1.0```                        | :white_check_mark:  |
-| ```dGainBlue```                         | Digital gain for blue pixels in Bayer array                                   | ```1024```                       | :white_check_mark:  |
-| ```dgainGB```                           | Digital gain for green-blue pixels in Bayer array                             | ```1024```                       | :white_check_mark:  |
-| ```dgainGR```                           | Digital gain for green-red pixels in Bayer array                              | ```1024```                       | :white_check_mark:  |
-| ```dGainRed```                          | Digital gain for red pixels in Bayer array                                    | ```1024```                       | :white_check_mark:  |
-| **Image Processing Controls**           |                                                                               |                                  |                     |
-| ```gamma```                             | Gamma correction of the image                                                 | ```2.2```                        | :white_check_mark:  |
-| ```wbBlue```                            | White balance for blue component                                              | ```1.0```                        | :white_check_mark:  |
-| ```wbGreen```                           | White balance for green component                                             | ```1.0```                        | :white_check_mark:  |
-| ```wbRed```                             | White balance for red component                                               | ```1.0```                        | :white_check_mark:  |
-| ```blackBlue```                         | Black level for blue pixels in Bayer array                                    | ```4200```                       | :white_check_mark:  |
-| ```blackGB```                           | Black level for green-blue pixels in Bayer array                              | ```4200```                       | :white_check_mark:  |
-| ```blackGR```                           | Black level for green-red pixels in Bayer array                               | ```4200```                       | :white_check_mark:  |
-| ```blackRed```                          | Black level for red pixels in Bayer array                                     | ```4200```                       | :white_check_mark:  |
-| **Color Correction Controls**           |                                                                               |                                  |                     |
-| ```CCMColorProfile```                   | Color correction profile preset                                               | ```IndoorWarmLightCurtainOpen``` |                     |
-| **GigE Vision Stream Parameters**       |                                                                               |                                  |                     |
-| ```AnswerTimeout```                     | Time the GigE Vision Device can take for command response.                    | ```100```                        |                     |
-| ```CommandRetryCount```                 | Command attempts before it is considered as failed                            | ```50```                         |                     |
-| ```MaximumPendingResends```             | Maximum number of packets in a block that can be missing                      | ```0```                          |                     |
-| ```MaximumResendRequestRetryByPacket``` | The maximum number of times a resend request can be issued.                   | ```0```                          |                     |
-| ```MaximumResendGroupSize```            | Maximum number of packets to resend at once                                   | ```0```                          |                     |
-| ```ResendRequestTimeout```              | Timeout for resend requests in (us)                                           | ```100```                        |                     |
-| ```RequestTimeout```                    | Maximum time that the data receiver waits for all the packets of a block (ms) | ```10000```                      |                     |
-| ```ResetOnIdle```                       | Time without packets before resetting itself                                  | ```2000```                       |                     |
-| ```Timeout```                           | Buffer reception timeout in (ms)                                              | ```5000```                       |                     |
+| Parameter                                | Description                                                                   | Default                          | Run-time adjustable |
+|------------------------------------------|-------------------------------------------------------------------------------|----------------------------------|---------------------|
+| ```mac_address```                        | The MAC address of Bottlenose                                                 | ```00:00:00:00:00:00```          |                     |
+| ```frame_id```                           | The frame_id embedded in image headers                                        | ```camera```                     | :white_check_mark:  |
+| ```keep_partial```                       | Keep partial images (i.e. corrupted in transmission)                          | ```false```                      | :white_check_mark:  |
+| ```format```                             | Format of the camera (*)                                                      | ```1920x1080```                  |                     |
+| ```fps```                                | Target frames per second (*)                                                  | ```10.0```                       |                     |
+| ***Image Sensor(s) Controls***           | (**)                                                                          |                                  |                     |
+| ```exposure```                           | Exposure time in milliseconds                                                 | ```20.0```                       | :white_check_mark:  |
+| ```gain```                               | Analog gain                                                                   | ```1.0```                        | :white_check_mark:  |
+| ```dGainBlue```                          | Digital gain for blue pixels in Bayer array                                   | ```1024```                       | :white_check_mark:  |
+| ```dgainGB```                            | Digital gain for green-blue pixels in Bayer array                             | ```1024```                       | :white_check_mark:  |
+| ```dgainGR```                            | Digital gain for green-red pixels in Bayer array                              | ```1024```                       | :white_check_mark:  |
+| ```dGainRed```                           | Digital gain for red pixels in Bayer array                                    | ```1024```                       | :white_check_mark:  |
+| **Image Processing Controls**            |                                                                               |                                  |                     |
+| ```gamma```                              | Gamma correction of the image                                                 | ```2.2```                        | :white_check_mark:  |
+| ```wbBlue```                             | White balance for blue component                                              | ```1.0```                        | :white_check_mark:  |
+| ```wbGreen```                            | White balance for green component                                             | ```1.0```                        | :white_check_mark:  |
+| ```wbRed```                              | White balance for red component                                               | ```1.0```                        | :white_check_mark:  |
+| ```blackBlue```                          | Black level for blue pixels in Bayer array                                    | ```4200```                       | :white_check_mark:  |
+| ```blackGB```                            | Black level for green-blue pixels in Bayer array                              | ```4200```                       | :white_check_mark:  |
+| ```blackGR```                            | Black level for green-red pixels in Bayer array                               | ```4200```                       | :white_check_mark:  |
+| ```blackRed```                           | Black level for red pixels in Bayer array                                     | ```4200```                       | :white_check_mark:  |
+| **Color Correction Controls**            |                                                                               |                                  |                     |
+| ```CCMColorProfile```                    | Color correction profile preset                                               | ```IndoorWarmLightCurtainOpen``` |                     |
+| **Auto Exposure and Auto Gain Controls** |                                                                               |                                  |                     |
+| ```autoExposureEnable```                 | Enable auto exposure and auto gain control                                    | ```false```                      |                     |
+| ```autoExposureLuminanceTarget```        | Luminance target for exposure control ```[0, 65535]```                        | ```16384```                      |                     |
+| ```autoExposureFactor```                 | Factor for luminance error term for auto exposure control ```[-1, 1]```       | ```5e-5```                       |                     |
+| ```autoGainFactor```                     | Factor for luminance error term for auto gain control ```[-1, 1]```           | ```1e-6```                       |                     |
+| **GigE Vision Stream Parameters**        |                                                                               |                                  |                     |
+| ```AnswerTimeout```                      | Time the GigE Vision Device can take for command response.                    | ```100```                        |                     |
+| ```CommandRetryCount```                  | Command attempts before it is considered as failed                            | ```50```                         |                     |
+| ```MaximumPendingResends```              | Maximum number of packets in a block that can be missing                      | ```0```                          |                     |
+| ```MaximumResendRequestRetryByPacket```  | The maximum number of times a resend request can be issued.                   | ```0```                          |                     |
+| ```MaximumResendGroupSize```             | Maximum number of packets to resend at once                                   | ```0```                          |                     |
+| ```ResendRequestTimeout```               | Timeout for resend requests in (us)                                           | ```100```                        |                     |
+| ```RequestTimeout```                     | Maximum time that the data receiver waits for all the packets of a block (ms) | ```10000```                      |                     |
+| ```ResetOnIdle```                        | Time without packets before resetting itself                                  | ```2000```                       |                     |
+| ```Timeout```                            | Buffer reception timeout in (ms)                                              | ```5000```                       |                     |
 
 
 (*) Choose a reasonable resolution and frame rate for your network, otherwise the camera may drop frames. 
@@ -91,10 +96,10 @@ The above parameters can be changed via a flag as `-p <parameter_name>:=<value>`
 
 ```
 # To view the left or mono stream
-ros2 run image_view image_view --ros-args --remap /image:=/camera_image_color
+ros2 run image_view image_view --ros-args --remap /image:=/image_color
 
 # To view the right stream (not supported for Mono models, stereo:=true must be set, see above)
-ros2 run image_view image_view --ros-args --remap /image:=/camera_image_color_1
+ros2 run image_view image_view --ros-args --remap /image:=/image_color_1
 ```
 
 ### Published Topics

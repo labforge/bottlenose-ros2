@@ -56,39 +56,11 @@ const parameter_t bottlenose_parameters[] = {
   {"blackGR", rclcpp::ParameterValue(4200)},
   {"blackRed", rclcpp::ParameterValue(4200)},
 
-//  /* Lens and extrinsic parameters -> not used FIXME: figure out ROS2 calibration files */
-//  {"Rectification", rclcpp::ParameterValue(false)},
-//  {"Undistortion", rclcpp::ParameterValue(false)},
-//  {"cx0", rclcpp::ParameterValue(1928.27)},
-//  {"cy0", rclcpp::ParameterValue(1089.25)},
-//  {"fx0", rclcpp::ParameterValue(1199.58)},
-//  {"fy0", rclcpp::ParameterValue(1199.58)},
-//  {"k10", rclcpp::ParameterValue(-0.14)},
-//  {"k20", rclcpp::ParameterValue(0.01)},
-//  {"k30", rclcpp::ParameterValue(0.0)},
-//  {"p10", rclcpp::ParameterValue(0.0)},
-//  {"p20", rclcpp::ParameterValue(0.0)},
-//  {"rx0", rclcpp::ParameterValue(0.0)},
-//  {"ry0", rclcpp::ParameterValue(0.0)},
-//  {"rz0", rclcpp::ParameterValue(0.0)},
-//  {"tx0", rclcpp::ParameterValue(0.0)},
-//  {"ty0", rclcpp::ParameterValue(0.0)},
-//  {"tz0", rclcpp::ParameterValue(0.0)},
-//  {"cx1", rclcpp::ParameterValue(2124.38)},
-//  {"cy1", rclcpp::ParameterValue(1014.13)},
-//  {"fx1", rclcpp::ParameterValue(1208.40)},
-//  {"fy1", rclcpp::ParameterValue(1208.40)},
-//  {"k11", rclcpp::ParameterValue(-0.14)},
-//  {"k21", rclcpp::ParameterValue(0.01)},
-//  {"k31", rclcpp::ParameterValue(0.0)},
-//  {"p11", rclcpp::ParameterValue(0.0)},
-//  {"p21", rclcpp::ParameterValue(0.0)},
-//  {"rx1", rclcpp::ParameterValue(0.0)},
-//  {"ry1", rclcpp::ParameterValue(0.0)},
-//  {"rz1", rclcpp::ParameterValue(0.0)},
-//  {"tx1", rclcpp::ParameterValue(0.13)},
-//  {"ty1", rclcpp::ParameterValue(0.0)},
-//  {"tz1", rclcpp::ParameterValue(0.0)},
+  /* Auto exposure controls */
+  {"autoExposureEnable", rclcpp::ParameterValue(false)},
+  {"autoExposureFactor", rclcpp::ParameterValue(5e-5)},
+  {"autoGainFactor", rclcpp::ParameterValue(1e-6)},
+  {"autoExposureLuminanceTarget", rclcpp::ParameterValue(0x4000)},
 
   /* GEV Parameters */
   {"AnswerTimeout", rclcpp::ParameterValue(100)},
@@ -99,6 +71,11 @@ const parameter_t bottlenose_parameters[] = {
   {"ResendRequestTimeout", rclcpp::ParameterValue(100)},
   {"RequestTimeout", rclcpp::ParameterValue(10000)},
   {"ResetOnIdle", rclcpp::ParameterValue(2000)},
+
+  /* Calibration file parameters */
+  {"camera_calibration_file", rclcpp::ParameterValue("")},
+  {"left_camera_calibration_file", rclcpp::ParameterValue("")},
+  {"right_camera_calibration_file", rclcpp::ParameterValue("")},
 };
 
 #endif // __BOTTLENOSE_PARAMETERS_HPP__
