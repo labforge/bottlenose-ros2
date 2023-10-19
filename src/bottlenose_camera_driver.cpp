@@ -159,59 +159,84 @@ std::shared_ptr<sensor_msgs::msg::Image> CameraDriver::convertFrameToMessage(IPv
 }
 
 bool CameraDriver::update_runtime_parameters() {
-    // All integer parameters
-    for(auto param : {"dgainBlue",
-                      "dgainGB",
-                      "dgainGR",
-                      "dgainRed",
-                      "blackBlue",
-                      "blackGB",
-                      "blackGR",
-                      "blackRed"}) {
-        PvGenInteger *intval = static_cast<PvGenInteger *>( m_device->GetParameters()->Get(param));
-        int64_t val = get_parameter(param).as_int();
-        try {
-            auto value = m_camera_parameter_cache.at(param);
-            if(get<int64_t>(value) == val) {
-                continue;
-            }
-        } catch(std::out_of_range &e) { }
+  // All integer parameters
+  for (auto param: {"dgainBlue",
+                    "dgainGB",
+                    "dgainGR",
+                    "dgainRed",
+                    "blackBlue",
+                    "blackGB",
+                    "blackGR",
+                    "blackRed"}) {
+    PvGenInteger *intval = static_cast<PvGenInteger *>( m_device->GetParameters()->Get(param));
+    int64_t val = get_parameter(param).as_int();
+    try {
+      auto value = m_camera_parameter_cache.at(param);
+      if (get<int64_t>(value) == val) {
+        continue;
+      }
+    } catch (std::out_of_range &e) {}
 
-        PvResult res = intval->SetValue(val);
-        if (res.IsFailure()) {
-            RCLCPP_WARN_STREAM(get_logger(), "Could not set parameter " << param << " to " << val << " cause " << res.GetDescription().GetAscii());
-            return false;
-        }
-        // Cache
-        m_camera_parameter_cache[param] = val;
-        RCLCPP_DEBUG_STREAM(get_logger(), "Set parameter " << param << " to " << val);
+    PvResult res = intval->SetValue(val);
+    if (res.IsFailure()) {
+      RCLCPP_WARN_STREAM(get_logger(), "Could not set parameter " << param << " to " << val << " cause "
+                                                                  << res.GetDescription().GetAscii());
+      return false;
     }
+    // Cache
+    m_camera_parameter_cache[param] = val;
+    RCLCPP_DEBUG_STREAM(get_logger(), "Set parameter " << param << " to " << val);
+  }
 
-    for(auto param : {"exposure",
-            "gain",
-            "gamma",
-            "wbBlue",
-            "wbGreen",
-            "wbRed"}) {
-        PvGenFloat *floatVal = static_cast<PvGenFloat *>( m_device->GetParameters()->Get(param));
-        double val = get_parameter(param).as_double();
-        try {
-            auto value = m_camera_parameter_cache.at(param);
-            if(get<double>(value) == val) {
-                continue;
-            }
-        } catch(std::out_of_range &e) { }
+  for (auto param: {"gamma",
+                    "wbBlue",
+                    "wbGreen",
+                    "wbRed"}) {
+    PvGenFloat *floatVal = static_cast<PvGenFloat *>( m_device->GetParameters()->Get(param));
+    double val = get_parameter(param).as_double();
+    try {
+      auto value = m_camera_parameter_cache.at(param);
+      if (get<double>(value) == val) {
+        continue;
+      }
+    } catch (std::out_of_range &e) {}
 
-        PvResult res = floatVal->SetValue(val);
-        if (res.IsFailure()) {
-            RCLCPP_WARN_STREAM(get_logger(), "Could not set parameter " << param << " to " << val);
-            return false;
-        }
-        // Cache
-        m_camera_parameter_cache[param] = val;
-        RCLCPP_DEBUG_STREAM(get_logger(), "Set parameter " << param << " to " << val);
+    PvResult res = floatVal->SetValue(val);
+    if (res.IsFailure()) {
+      RCLCPP_WARN_STREAM(get_logger(), "Could not set parameter " << param << " to " << val);
+      return false;
     }
-    return set_ccm_profile();
+    // Cache
+    m_camera_parameter_cache[param] = val;
+    RCLCPP_DEBUG_STREAM(get_logger(), "Set parameter " << param << " to " << val);
+  }
+
+  // Only if auto exposure is not enabled
+  bool enable_aexp = get_parameter("autoExposureEnable").as_bool();
+  if(!enable_aexp) {
+    for (auto param: {"exposure",
+                      "gain"}) {
+      PvGenFloat *floatVal = static_cast<PvGenFloat *>( m_device->GetParameters()->Get(param));
+      double val = get_parameter(param).as_double();
+      try {
+        auto value = m_camera_parameter_cache.at(param);
+        if (get<double>(value) == val) {
+          continue;
+        }
+      } catch (std::out_of_range &e) {}
+
+      PvResult res = floatVal->SetValue(val);
+      if (res.IsFailure()) {
+        RCLCPP_WARN_STREAM(get_logger(), "Could not set parameter " << param << " to " << val);
+        return false;
+      }
+      // Cache
+      m_camera_parameter_cache[param] = val;
+      RCLCPP_DEBUG_STREAM(get_logger(), "Set parameter " << param << " to " << val);
+    }
+  }
+
+  return set_ccm_profile();
 }
 
 bool CameraDriver::set_interval() {
@@ -335,6 +360,57 @@ bool CameraDriver::set_stereo() {
         RCLCPP_DEBUG_STREAM(get_logger(), "Configured stereo to " << enable_stereo);
 
     return res.IsOK();
+}
+
+bool CameraDriver::set_auto_exposure() {
+  bool enable_aexp = get_parameter("autoExposureEnable").as_bool();
+  // Apply parameter to GEV
+  PvGenBoolean *gev_aexp = dynamic_cast<PvGenBoolean *>( m_device->GetParameters()->Get("autoExposureEnable"));
+  if(gev_aexp == nullptr) {
+    RCLCPP_ERROR(get_logger(), "Could not enable auto exposure ... are you running the latest firmware?");
+    return false;
+  }
+  PvResult res = gev_aexp->SetValue(enable_aexp);
+  if(!res.IsOK()) {
+    RCLCPP_ERROR_STREAM(get_logger(), "Could not configure auto exposure, cause: " << res.GetDescription().GetAscii());
+    return false;
+  }
+  if(enable_aexp) {
+    PvGenInteger *gev_aexp_target = dynamic_cast<PvGenInteger *>( m_device->GetParameters()->Get("autoExposureLuminanceTarget"));
+    if(gev_aexp_target == nullptr) {
+      RCLCPP_ERROR(get_logger(), "Unable to register luminance target");
+      return false;
+    }
+
+    res = gev_aexp_target->SetValue(get_parameter("autoExposureLuminanceTarget").as_int());
+    if(!res.IsOK()) {
+      RCLCPP_ERROR_STREAM(get_logger(), "Could not configure luminance target, cause: " << res.GetDescription().GetAscii());
+      return false;
+    }
+
+    PvGenFloat *gev_aexp_gain = dynamic_cast<PvGenFloat *>( m_device->GetParameters()->Get("autoExposureFactor"));
+    if(gev_aexp_gain == nullptr) {
+      RCLCPP_ERROR(get_logger(), "Unable to register autoExposureFactor");
+      return false;
+    }
+    res = gev_aexp_target->SetValue(get_parameter("autoExposureFactor").as_double());
+    if(!res.IsOK()) {
+      RCLCPP_ERROR_STREAM(get_logger(), "Could not set autoExposureFactor, cause: " << res.GetDescription().GetAscii());
+      return false;
+    }
+
+    PvGenFloat *gev_aec_gain = dynamic_cast<PvGenFloat *>( m_device->GetParameters()->Get("autoGainFactor"));
+    if(gev_aec_gain == nullptr) {
+      RCLCPP_ERROR(get_logger(), "Unable to register autoGainFactor");
+      return false;
+    }
+    res = gev_aec_gain->SetValue(get_parameter("autoExposureFactor").as_double());
+    if(!res.IsOK()) {
+      RCLCPP_ERROR_STREAM(get_logger(), "Could not set autoGainFactor, cause: " << res.GetDescription().GetAscii());
+      return false;
+    }
+  }
+  return true;
 }
 
 bool CameraDriver::connect() {
@@ -477,6 +553,11 @@ void CameraDriver::management_thread() {
     return;
   }
   if(!set_stereo()) {
+    disconnect();
+    done = true;
+    return;
+  }
+  if(!set_auto_exposure()) {
     disconnect();
     done = true;
     return;
