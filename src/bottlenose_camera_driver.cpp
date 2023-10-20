@@ -234,7 +234,7 @@ bool CameraDriver::update_runtime_parameters() {
     }
   }
   // propagate cache
-  m_camera_parameter_cache["wbAuto"] = (int64_t)(enable_awb));
+  m_camera_parameter_cache["wbAuto"] = (int64_t)(enable_awb);
 
 
   // Only if auto exposure is not enabled
