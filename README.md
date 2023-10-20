@@ -66,6 +66,7 @@ ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p ma
 | ```wbBlue```                             | White balance for blue component                                              | ```1.0```                        | :white_check_mark:  |
 | ```wbGreen```                            | White balance for green component                                             | ```1.0```                        | :white_check_mark:  |
 | ```wbRed```                              | White balance for red component                                               | ```1.0```                        | :white_check_mark:  |
+| ```wbAuto```                             | Auto white balance control                                                    | ```true```                       | :white_check_mark:  |
 | ```blackBlue```                          | Black level for blue pixels in Bayer array                                    | ```4200```                       | :white_check_mark:  |
 | ```blackGB```                            | Black level for green-blue pixels in Bayer array                              | ```4200```                       | :white_check_mark:  |
 | ```blackGR```                            | Black level for green-red pixels in Bayer array                               | ```4200```                       | :white_check_mark:  |

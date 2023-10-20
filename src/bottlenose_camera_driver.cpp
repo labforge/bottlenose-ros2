@@ -210,6 +210,32 @@ bool CameraDriver::update_runtime_parameters() {
     m_camera_parameter_cache[param] = val;
     RCLCPP_DEBUG_STREAM(get_logger(), "Set parameter " << param << " to " << val);
   }
+  bool enable_awb = get_parameter("wbAuto").as_bool();
+  PvGenBoolean *gev_awb = dynamic_cast<PvGenBoolean *>( m_device->GetParameters()->Get("wbAuto"));
+  if(gev_awb == nullptr) {
+    RCLCPP_ERROR(get_logger(), "Could not enable auto white balance ... are you running the latest firmware?");
+    return false;
+  }
+  try {
+    auto value = m_camera_parameter_cache.at("wbAuto");
+    if (get<int64_t>(value) != (int64_t)(enable_awb)) {
+      PvResult res = gev_awb->SetValue(enable_awb);
+      if(!res.IsOK()) {
+        RCLCPP_ERROR_STREAM(get_logger(), "Could not configure auto white balance, cause: " << res.GetDescription().GetAscii());
+        return false;
+      }
+    }
+  } catch (std::out_of_range &e) {
+    // Undefined, set as well
+    PvResult res = gev_awb->SetValue(enable_awb);
+    if(!res.IsOK()) {
+      RCLCPP_ERROR_STREAM(get_logger(), "Could not configure auto white balance, cause: " << res.GetDescription().GetAscii());
+      return false;
+    }
+  }
+  // propagate cache
+  m_camera_parameter_cache["wbAuto"] = (int64_t)(enable_awb));
+
 
   // Only if auto exposure is not enabled
   bool enable_aexp = get_parameter("autoExposureEnable").as_bool();
