@@ -135,7 +135,7 @@ namespace {
   /**
    * Test auto white balance control.
    */
-  TEST(CameraDriverTests, TestAEXPEnable) {
+  TEST(CameraDriverTests, TestWbEnable) {
     static atomic<bool> done(false);
     const char*mac = getenv("BOTTLENOSE");
     if(mac) {
