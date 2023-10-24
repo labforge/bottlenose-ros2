@@ -83,7 +83,7 @@ jobs:
           path: .github/workflows/ci
 
       - name: Lock HIL
-        uses: ./.github/workflows/lock
+        uses: ./.github/workflows/ci/lock
         with:
           state: 'lock'
 
@@ -163,7 +163,7 @@ jobs:
           state: 'off'
 
       - name: Unlock HIL
-        uses: ./.github/workflows/lock
+        uses: ./.github/workflows/ci/lock
         with:
           state: 'unlock'
 
