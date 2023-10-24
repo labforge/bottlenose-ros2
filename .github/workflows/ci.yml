@@ -82,6 +82,11 @@ jobs:
           token: ${{ secrets.CITOKEN }}
           path: .github/workflows/ci
 
+      - name: Lock HIL
+        uses: ./.github/workflows/lock
+        with:
+          state: 'lock'
+
       - name: Power off CI
         uses: ./.github/workflows/ci/power
         with:
@@ -128,6 +133,7 @@ jobs:
         uses: ./.github/workflows/ci/power
         with:
           state: 'off'
+
       - name: Settle for power off
         run: |
           sleep 1
@@ -155,6 +161,11 @@ jobs:
         with:
           if: always()
           state: 'off'
+
+      - name: Unlock HIL
+        uses: ./.github/workflows/lock
+        with:
+          state: 'unlock'
 
       - name: Clear artifact cache
         if: always()
