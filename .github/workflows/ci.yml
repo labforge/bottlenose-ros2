@@ -164,6 +164,7 @@ jobs:
 
       - name: Unlock HIL
         uses: ./.github/workflows/ci/lock
+        if: always()
         with:
           state: 'unlock'
 
