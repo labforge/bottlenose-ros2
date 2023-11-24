@@ -390,6 +390,7 @@ bool CameraDriver::set_stereo() {
 
 bool CameraDriver::set_auto_exposure() {
   bool enable_aexp = get_parameter("autoExposureEnable").as_bool();
+  RCLCPP_INFO_STREAM(get_logger(), "Auto exposure set to " << enable_aexp);
   // Apply parameter to GEV
   PvGenBoolean *gev_aexp = dynamic_cast<PvGenBoolean *>( m_device->GetParameters()->Get("autoExposureEnable"));
   if(gev_aexp == nullptr) {
@@ -407,7 +408,6 @@ bool CameraDriver::set_auto_exposure() {
       RCLCPP_ERROR(get_logger(), "Unable to register luminance target");
       return false;
     }
-
     res = gev_aexp_target->SetValue(get_parameter("autoExposureLuminanceTarget").as_int());
     if(!res.IsOK()) {
       RCLCPP_ERROR_STREAM(get_logger(), "Could not configure luminance target, cause: " << res.GetDescription().GetAscii());
@@ -419,7 +419,7 @@ bool CameraDriver::set_auto_exposure() {
       RCLCPP_ERROR(get_logger(), "Unable to register autoExposureFactor");
       return false;
     }
-    res = gev_aexp_target->SetValue(get_parameter("autoExposureFactor").as_double());
+    res = gev_aexp_gain->SetValue(get_parameter("autoExposureFactor").as_double());
     if(!res.IsOK()) {
       RCLCPP_ERROR_STREAM(get_logger(), "Could not set autoExposureFactor, cause: " << res.GetDescription().GetAscii());
       return false;
@@ -430,7 +430,7 @@ bool CameraDriver::set_auto_exposure() {
       RCLCPP_ERROR(get_logger(), "Unable to register autoGainFactor");
       return false;
     }
-    res = gev_aec_gain->SetValue(get_parameter("autoExposureFactor").as_double());
+    res = gev_aec_gain->SetValue(get_parameter("autoGainFactor").as_double());
     if(!res.IsOK()) {
       RCLCPP_ERROR_STREAM(get_logger(), "Could not set autoGainFactor, cause: " << res.GetDescription().GetAscii());
       return false;
