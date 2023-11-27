@@ -77,6 +77,9 @@ const parameter_t bottlenose_parameters[] = {
   {"camera_calibration_file", rclcpp::ParameterValue("")},
   {"left_camera_calibration_file", rclcpp::ParameterValue("")},
   {"right_camera_calibration_file", rclcpp::ParameterValue("")},
+
+  /* NTP support */
+  {"ntpEnable", rclcpp::ParameterValue(false)}
 };
 
 #endif // __BOTTLENOSE_PARAMETERS_HPP__

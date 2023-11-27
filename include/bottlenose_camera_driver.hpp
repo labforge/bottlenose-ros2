@@ -72,12 +72,15 @@ namespace bottlenose_camera_driver {
     void management_thread();             ///< Management thread for interacting with GEV stack.
     void status_callback();               ///< ROS2 status callback and orchestration polled from a timer.
     bool is_ebus_loaded();                ///< Check if the eBusSDK Driver is loaded.
+    bool enable_chunk(std::string chunk); ///< Enable chunk data
+    bool enable_ntp(bool enable);         ///< Enable NTP
 
     bool load_calibration(uint32_t sid, std::string cname); ///< load calibration data
     bool set_calibration();                 ///< set calibration on to camera
     uint32_t get_num_sensors();             ///< returns the number of sensors: 1=mono and 2=stereo    
     bool set_register(std::string, std::variant<int64_t, double, bool>); ///< set a register value on the camera
     bool m_calibrated;
+    bool m_ntp_enabled;
     
     std::atomic<bool> done;               ///< Flag for management thread to terminate.
     std::thread m_thread;                 ///< Management thread handle.
