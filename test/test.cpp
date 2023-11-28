@@ -69,7 +69,7 @@ namespace {
       rclcpp::executors::SingleThreadedExecutor exec;
       exec.add_node(bottlenose_camera_driver);
       // Create subscriber to image topic
-      auto image_subscriber = std::make_shared<ImageSubscriber>("image_raw");
+      auto image_subscriber = std::make_shared<ImageSubscriber>("image_color");
       exec.add_node(image_subscriber);
       std::thread spin_thread([&exec]() {
         while(!done) {
@@ -111,7 +111,7 @@ namespace {
       rclcpp::executors::SingleThreadedExecutor exec;
       exec.add_node(bottlenose_camera_driver);
       // Create subscriber to image topic
-      auto image_subscriber = std::make_shared<ImageSubscriber>("image_raw");
+      auto image_subscriber = std::make_shared<ImageSubscriber>("image_color");
       exec.add_node(image_subscriber);
       std::thread spin_thread([&exec]() {
         while(!done) {
@@ -148,7 +148,7 @@ namespace {
       // Fire up ROS driver
       rclcpp::executors::SingleThreadedExecutor exec;
       exec.add_node(bottlenose_camera_driver);
-      auto image_subscriber = std::make_shared<ImageSubscriber>("image_raw");
+      auto image_subscriber = std::make_shared<ImageSubscriber>("image_color");
       exec.add_node(image_subscriber);
       std::thread spin_thread([&exec]() {
         while(!done) {
@@ -185,7 +185,7 @@ namespace {
       // Fire up ROS driver
       rclcpp::executors::SingleThreadedExecutor exec;
       exec.add_node(bottlenose_camera_driver);
-      auto image_subscriber = std::make_shared<ImageSubscriber>("image_raw");
+      auto image_subscriber = std::make_shared<ImageSubscriber>("image_color");
       exec.add_node(image_subscriber);
       std::thread spin_thread([&exec]() {
         while(!done) {
@@ -222,7 +222,7 @@ namespace {
       // Fire up ROS driver
       rclcpp::executors::SingleThreadedExecutor exec;
       exec.add_node(bottlenose_camera_driver);
-      auto image_subscriber = std::make_shared<ImageSubscriber>("image_raw");
+      auto image_subscriber = std::make_shared<ImageSubscriber>("image_color");
       exec.add_node(image_subscriber);
       std::thread spin_thread([&exec]() {
         while(!done) {
