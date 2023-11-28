@@ -17,6 +17,7 @@
 @file bottlenose_chunk_parser.cpp Parse chunk data.
 @author G. M. Tchamgoue <martin@labforge.ca>, Thomas Reidemeister <thomas@labforge.ca>
 */
+#include <iomanip>
 #include "bottlenose_chunk_parser.hpp"
 #include "rclcpp/node.hpp"
 
