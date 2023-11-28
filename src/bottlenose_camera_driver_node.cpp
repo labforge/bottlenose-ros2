@@ -26,7 +26,7 @@ int main(int argc, char * argv[])
     // Force flush of the stdout buffer.
     // This ensures a correct sync of all prints
     // even when executed simultaneously within a launch file.
-    setvbuf(stdout, NULL, _IONBF, BUFSIZ);
+    setvbuf(stdout, nullptr, _IONBF, BUFSIZ);
     
     rclcpp::init(argc, argv);
     rclcpp::executors::SingleThreadedExecutor exec;

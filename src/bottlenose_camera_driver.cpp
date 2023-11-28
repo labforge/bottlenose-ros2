@@ -51,7 +51,10 @@ namespace bottlenose_camera_driver
   using namespace cv;
   namespace fs = std::filesystem;
 
-CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bottlenose_camera_driver", node_options)
+CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options)
+  : Node("bottlenose_camera_driver", node_options),
+  m_calibrated(false),
+  m_terminate(false)
 {
   // Allocate GEV buffers
   for ( size_t i = 0; i < BUFFER_COUNT; i++ )
@@ -65,7 +68,6 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bott
     // Add to external list - used to eventually release the buffers
     m_buffers.push_back(buffer );
   }
-  m_terminate = false;
 
   for(auto &parameter : bottlenose_parameters) {
     this->declare_parameter(parameter.name, parameter.default_value);
@@ -75,9 +77,6 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bott
   m_image_color = image_transport::create_camera_publisher(this, "image_color", custom_qos_profile);
   m_image_color_1 = image_transport::create_camera_publisher(this, "image_color_1", custom_qos_profile);
 
-  m_calibrated = false;
-  m_ntp_enabled = false;
-  
   if(!is_ebus_loaded()) {
     RCLCPP_ERROR(get_logger(), "The eBus Driver is not loaded, please reinstall the driver!");
   }
@@ -749,13 +748,13 @@ bool CameraDriver::is_streaming() {
 
 bool CameraDriver::is_ebus_loaded() {
   char buffer[128];
-  std::string result = "";
+  std::string result;
   FILE* pipe = popen("/usr/sbin/lsmod", "r");
   if (!pipe)
     return false;
 
   try {
-    while (fgets(buffer, sizeof buffer, pipe) != NULL) {
+    while (fgets(buffer, sizeof buffer, pipe) != nullptr) {
       result += buffer;
     }
   } catch (...) {
@@ -820,7 +819,7 @@ bool CameraDriver::load_calibration(uint32_t sid, std::string cname){
   if((sid != LEFTCAM) && (sid != RIGHTCAM)){
     return false;
   }
-  if(cname.size() == 0){
+  if(cname.empty()){
     return false;
   }
       
@@ -891,7 +890,7 @@ bool CameraDriver::set_register(std::string regname, std::variant<int64_t, doubl
 }
 
 static void decompose_projection(double *pm, double *tvec, double *rvec){
-  if((pm == NULL) || (tvec == NULL) || (rvec == NULL)) return;
+  if((pm == nullptr) || (tvec == nullptr) || (rvec == nullptr)) return;
     
   cv::Mat P(3, 4, CV_64F, pm); //projection matrix
   cv::Mat K(3, 3, CV_64F); // intrinsic parameter matrix

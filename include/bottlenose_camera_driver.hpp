@@ -21,7 +21,7 @@
 #ifndef __BOTTLENOSE_CAMERA_DRIVER_HPP__
 #define __BOTTLENOSE_CAMERA_DRIVER_HPP__
 
-#include <stdio.h>
+#include <cstdio>
 #include <iostream>
 #include <variant>
 #include "rclcpp/rclcpp.hpp"
@@ -50,7 +50,7 @@ namespace bottlenose_camera_driver {
     explicit CameraDriver(const rclcpp::NodeOptions&);
     bool is_streaming();
     bool isCalibrated();
-    ~CameraDriver();
+    ~CameraDriver() override;
   private:
     /**
      * Convert the frame to a ROS2 message.
@@ -71,7 +71,7 @@ namespace bottlenose_camera_driver {
     void abort_buffers();                 ///< Abort buffers for GEV stack.
     void management_thread();             ///< Management thread for interacting with GEV stack.
     void status_callback();               ///< ROS2 status callback and orchestration polled from a timer.
-    bool is_ebus_loaded();                ///< Check if the eBusSDK Driver is loaded.
+    static bool is_ebus_loaded();         ///< Check if the eBusSDK Driver is loaded.
     bool enable_chunk(std::string chunk); ///< Enable chunk data
     bool enable_ntp(bool enable);         ///< Enable NTP
 
@@ -80,11 +80,10 @@ namespace bottlenose_camera_driver {
     uint32_t get_num_sensors();             ///< returns the number of sensors: 1=mono and 2=stereo    
     bool set_register(std::string, std::variant<int64_t, double, bool>); ///< set a register value on the camera
     bool m_calibrated;
-    bool m_ntp_enabled;
-    
+
     std::atomic<bool> done;               ///< Flag for management thread to terminate.
     std::thread m_thread;                 ///< Management thread handle.
-    bool m_terminate;                     ///< Flag to terminate management thread.
+    std::atomic<bool> m_terminate;        ///< Flag to terminate management thread.
     PvDeviceGEV *m_device;                ///< GEV device handle.
     PvStreamGEV *m_stream;                ///< GEV stream handle.
 

@@ -21,7 +21,6 @@
 #define __BOTTLENOSE_CHUNK_PARSER_HPP__
 
 #include <PvBuffer.h>
-#include <glog/logging.h>
 #include <vector>
 
 /**
