@@ -250,6 +250,7 @@ bool CameraDriver::update_runtime_parameters() {
         RCLCPP_ERROR_STREAM(get_logger(), "Could not configure auto white balance, cause: " << res.GetDescription().GetAscii());
         return false;
       }
+      RCLCPP_DEBUG(get_logger(), "Set auto white balance to %d", enable_awb);
     }
   } catch (std::out_of_range &e) {
     // Undefined, set as well
@@ -258,10 +259,10 @@ bool CameraDriver::update_runtime_parameters() {
       RCLCPP_ERROR_STREAM(get_logger(), "Could not configure auto white balance, cause: " << res.GetDescription().GetAscii());
       return false;
     }
+    RCLCPP_DEBUG(get_logger(), "Set auto white balance to %d", enable_awb);
   }
   // propagate cache
   m_camera_parameter_cache["wbAuto"] = (int64_t)(enable_awb);
-
 
   // Only if auto exposure is not enabled
   bool enable_aexp = get_parameter("autoExposureEnable").as_bool();
