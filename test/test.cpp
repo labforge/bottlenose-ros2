@@ -28,7 +28,7 @@ namespace {
   using namespace std;
   using namespace std::literals::chrono_literals;
 
-  const int expected_image_delay = 10;
+  const int expected_image_delay = 5;
 
   /**
    * @brief Class to subscribe to the first message received in a topic.
