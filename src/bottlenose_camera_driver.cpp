@@ -401,7 +401,6 @@ bool CameraDriver::set_ccm_profile() {
 
 bool CameraDriver::set_ccm_custom() {
   auto ccm_custom_str = get_parameter("CCMCustom").as_string();
-  RCLCPP_DEBUG(get_logger(), "CCMCustom: %s", ccm_custom_str.c_str());
   if(!ccm_custom_str.empty()) {
     try {
       auto value = m_camera_parameter_cache.at("CCMCustom");
@@ -425,6 +424,12 @@ bool CameraDriver::set_ccm_custom() {
           return false;
         }
       }
+    }
+    PvGenCommand * cmd = dynamic_cast<PvGenCommand *>( m_device->GetParameters()->Get("SetCustomProfile"));
+    PvResult res = cmd->Execute();
+    if(res.IsFailure()) {
+      RCLCPP_ERROR_STREAM(get_logger(), "Could not apply custom color profile");
+      return false;
     }
     // Apply to cache
     m_camera_parameter_cache["CCMCustom"] = ccm_custom_str;

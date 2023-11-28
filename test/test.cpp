@@ -85,7 +85,6 @@ namespace {
 
     } else {
       // No sensor to test against, smoke test
-//      rclcpp::init(0, nullptr);
       rclcpp::NodeOptions options;
       auto bottlenose_camera_driver = std::make_shared<bottlenose_camera_driver::CameraDriver>(options);
     }
@@ -236,6 +235,45 @@ namespace {
 
       ASSERT_TRUE(bottlenose_camera_driver->is_streaming());
       ASSERT_TRUE(bottlenose_camera_driver->isCalibrated());
+      ASSERT_TRUE(image_subscriber->m_image != nullptr);
+
+    } else {
+      GTEST_SKIP() << "No sensor to test against, skipping test";
+    }
+  }
+
+  /**
+   * Test that the driver can be initialized with a custom CCM.
+   */
+  TEST(CameraDriverTests, TestCustomCCM) {
+    static atomic<bool> done(false);
+    const char*mac = getenv("BOTTLENOSE");
+    if(mac) {
+      // Start Bottlenose Camera Driver
+      rclcpp::NodeOptions options;
+      auto bottlenose_camera_driver = std::make_shared<bottlenose_camera_driver::CameraDriver>(options);
+      rclcpp::Parameter mac_param("mac_address", mac);
+      bottlenose_camera_driver->set_parameter(mac_param);
+
+      // Set CCM to custom
+      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("CCMColorProfile", "Custom"));
+      bottlenose_camera_driver->set_parameter(rclcpp::Parameter("CCMCustom", "1,1.1,1.2;2,2.1,2.2;3,3.1,3.2"));
+
+      // Fire up ROS driver
+      rclcpp::executors::SingleThreadedExecutor exec;
+      exec.add_node(bottlenose_camera_driver);
+      auto image_subscriber = std::make_shared<ImageSubscriber>("image_color");
+      exec.add_node(image_subscriber);
+      std::thread spin_thread([&exec]() {
+        while(!done) {
+          exec.spin_once(100ms);
+        }
+      });
+      sleep(expected_image_delay);
+      done = true;
+      spin_thread.join();
+      sleep(1);
+      ASSERT_TRUE(bottlenose_camera_driver->is_streaming());
       ASSERT_TRUE(image_subscriber->m_image != nullptr);
 
     } else {
