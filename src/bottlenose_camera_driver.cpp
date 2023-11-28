@@ -51,6 +51,30 @@ namespace bottlenose_camera_driver
   using namespace cv;
   namespace fs = std::filesystem;
 
+  static bool parseMatrix(const std::string &str, float matrix[3][3]) {
+    std::istringstream iss(str);
+    char ch;
+    for (int i = 0; i < 3; ++i) {
+      for (int j = 0; j < 3; ++j) {
+        if (!(iss >> matrix[i][j])) {
+          return false;  // Failed to read a float
+        }
+        if (j < 2) {  // Expecting a comma after first two elements of each row
+          if (!(iss >> ch) || ch != ',') {
+            return false;
+          }
+        }
+      }
+      if (i < 2) {  // Expecting a semicolon after first two rows
+        if (!(iss >> ch) || ch != ';') {
+          return false;
+        }
+      }
+    }
+
+    return true;  // Successfully parsed the matrix
+  }
+
 CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options)
   : Node("bottlenose_camera_driver", node_options),
   m_calibrated(false),
@@ -263,8 +287,10 @@ bool CameraDriver::update_runtime_parameters() {
       RCLCPP_DEBUG_STREAM(get_logger(), "Set parameter " << param << " to " << val);
     }
   }
-
-  return set_ccm_profile();
+  if(!set_ccm_profile()) {
+    return false;
+  }
+  return set_ccm_custom();
 }
 
 bool CameraDriver::set_interval() {
@@ -371,6 +397,40 @@ bool CameraDriver::set_ccm_profile() {
     }
     RCLCPP_ERROR_STREAM(get_logger(), "Invalid Color Profile: " << ccm_profile_str);
     return false;
+}
+
+bool CameraDriver::set_ccm_custom() {
+  auto ccm_custom_str = get_parameter("CCMCustom").as_string();
+  RCLCPP_DEBUG(get_logger(), "CCMCustom: %s", ccm_custom_str.c_str());
+  if(!ccm_custom_str.empty()) {
+    try {
+      auto value = m_camera_parameter_cache.at("CCMCustom");
+      if(get<string>(value) == ccm_custom_str) {
+        return true;
+      }
+    } catch(std::out_of_range &e) { }
+
+    // Apply custom color profile
+    float matrix[3][3];
+    if(!parseMatrix(ccm_custom_str, matrix)) {
+      RCLCPP_ERROR_STREAM(get_logger(), "Invalid custom color profile: " << ccm_custom_str);
+      return false;
+    }
+    // Apply values
+    for(size_t row = 0; row < 3; row++) {
+      for(size_t col = 0; col < 3; col++) {
+        std::string param = "CCMValue" + std::to_string(row) + std::to_string(col);
+        if(!set_register(param, matrix[row][col])) {
+          RCLCPP_ERROR_STREAM(get_logger(), "Could not configure custom color profile");
+          return false;
+        }
+      }
+    }
+    // Apply to cache
+    m_camera_parameter_cache["CCMCustom"] = ccm_custom_str;
+    RCLCPP_DEBUG_STREAM(get_logger(), "Applied custom color profile: " << ccm_custom_str);
+  }
+  return true;
 }
 
 bool CameraDriver::set_stereo() {
@@ -529,6 +589,8 @@ void CameraDriver::disconnect() {
     m_device->Disconnect();
     PvDeviceGEV::Free(m_device);
   }
+  // Wipe parameter cache as we cannot control what was set before reconnect
+  m_camera_parameter_cache.clear();
   m_device = nullptr;
   m_stream = nullptr;
 }
