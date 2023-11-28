@@ -14,31 +14,43 @@
  * limitations under the License.                                             *
  ******************************************************************************
 
-@file bottlenose_camera_driver_node.cpp Implementation of Bottlenose Camera Driver
-@author Thomas Reidemeister <thomas@labforge.ca>
+@file bottlenose_chunk_parser.hpp Parse chunk data.
+@author G. M. Tchamgoue <martin@labforge.ca>, Thomas Reidemeister <thomas@labforge.ca>
 */
+#ifndef __BOTTLENOSE_CHUNK_PARSER_HPP__
+#define __BOTTLENOSE_CHUNK_PARSER_HPP__
 
-#include "bottlenose_camera_driver.hpp"
+#include <PvBuffer.h>
+#include <vector>
 
-int main(int argc, char * argv[])
-{
+/**
+ * @brief ChunkIDs for possible buffers appended to the GEV buffer.
+ */
+typedef enum {
+  CHUNK_ID_FEATURES = 0x4001,    ///< Keypoints
+  CHUNK_ID_DESCRIPTORS = 0x4002, ///< Descriptors
+  CHUNK_ID_DNNBBOXES = 0x4003,   ///< Bounding boxes for detected targets
+  CHUNK_ID_EMBEDDINGS = 0x4004,  ///< Embeddings
+  CHUNK_ID_INFO = 0x4005,        ///< Meta information
+} chunk_type_t;
 
-    // Force flush of the stdout buffer.
-    // This ensures a correct sync of all prints
-    // even when executed simultaneously within a launch file.
-    setvbuf(stdout, nullptr, _IONBF, BUFSIZ);
-    
-    rclcpp::init(argc, argv);
-    rclcpp::executors::SingleThreadedExecutor exec;
+/**
+ * @brief Meta information chunk data to decode timestamps.
+ */
+typedef struct __attribute__((packed, aligned(4))) {
+  uint64_t real_time;
+  uint32_t count;
+} info_t;
 
-    rclcpp::NodeOptions options;
-    auto bottlenose_camera_driver = std::make_shared<bottlenose_camera_driver::CameraDriver>(options);
+/**
+ * Decode meta information from buffer, if present.
+ * @param buffer Buffer received on GEV interface
+ * @param info Meta information
+ * @return
+ */
+bool chunkDecodeMetaInformation(PvBuffer *buffer, info_t *info);
 
-    exec.add_node(bottlenose_camera_driver);
+std::string ms_to_date_string(uint64_t ms);
 
 
-    exec.spin();
-    
-    rclcpp::shutdown();
-    return 0;
-}
+#endif // __BOTTLENOSE_CHUNK_PARSER_HPP__

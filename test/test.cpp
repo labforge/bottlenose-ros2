@@ -19,6 +19,7 @@
 */
 #include <PvConfigurationReader.h>
 #include "rclcpp/rclcpp.hpp"
+#include "rcutils/logging.h"
 #include "bottlenose_camera_driver.hpp"
 #include <gtest/gtest.h>
 #include <ament_index_cpp/get_package_share_directory.hpp>
@@ -26,6 +27,28 @@
 namespace {
   using namespace std;
   using namespace std::literals::chrono_literals;
+
+  const int expected_image_delay = 5;
+
+  /**
+   * @brief Class to subscribe to the first message received in a topic.
+   */
+  class ImageSubscriber : public rclcpp::Node {
+  public:
+    explicit ImageSubscriber(const std::string & topic) : Node("image_subscriber") {
+      m_subscription = this->create_subscription<sensor_msgs::msg::Image>(
+          topic, 10, std::bind(&ImageSubscriber::image_callback, this, std::placeholders::_1));
+    }
+
+    void image_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
+      if(m_image == nullptr) {
+        m_image = msg;
+      }
+    }
+
+    sensor_msgs::msg::Image::SharedPtr m_image;
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr m_subscription;
+  };
 
   /**
    * Test that the driver can be initiated against a sensor
@@ -45,16 +68,20 @@ namespace {
       // Fire up ROS driver
       rclcpp::executors::SingleThreadedExecutor exec;
       exec.add_node(bottlenose_camera_driver);
+      // Create subscriber to image topic
+      auto image_subscriber = std::make_shared<ImageSubscriber>("image_color");
+      exec.add_node(image_subscriber);
       std::thread spin_thread([&exec]() {
         while(!done) {
           exec.spin_once(100ms);
         }
       });
-      sleep(3);
+      sleep(expected_image_delay);
       done = true;
       spin_thread.join();
       sleep(1);
       ASSERT_TRUE(bottlenose_camera_driver->is_streaming());
+      ASSERT_TRUE(image_subscriber->m_image != nullptr);
 
     } else {
       // No sensor to test against, smoke test
@@ -83,16 +110,20 @@ namespace {
       // Fire up ROS driver
       rclcpp::executors::SingleThreadedExecutor exec;
       exec.add_node(bottlenose_camera_driver);
-      std::thread spin_thread([&exec, &bottlenose_camera_driver]() {
+      // Create subscriber to image topic
+      auto image_subscriber = std::make_shared<ImageSubscriber>("image_color");
+      exec.add_node(image_subscriber);
+      std::thread spin_thread([&exec]() {
         while(!done) {
           exec.spin_once(100ms);
         }
       });
-      sleep(3);
+      sleep(expected_image_delay);
       done = true;
       spin_thread.join();
       sleep(1);
       ASSERT_TRUE(bottlenose_camera_driver->is_streaming());
+      ASSERT_TRUE(image_subscriber->m_image != nullptr);
     } else {
       GTEST_SKIP() << "No sensor to test against, skipping test";
     }
@@ -117,16 +148,19 @@ namespace {
       // Fire up ROS driver
       rclcpp::executors::SingleThreadedExecutor exec;
       exec.add_node(bottlenose_camera_driver);
-      std::thread spin_thread([&exec, &bottlenose_camera_driver]() {
+      auto image_subscriber = std::make_shared<ImageSubscriber>("image_color");
+      exec.add_node(image_subscriber);
+      std::thread spin_thread([&exec]() {
         while(!done) {
           exec.spin_once(100ms);
         }
       });
-      sleep(3);
+      sleep(expected_image_delay);
       done = true;
       spin_thread.join();
       sleep(1);
       ASSERT_TRUE(bottlenose_camera_driver->is_streaming());
+      ASSERT_TRUE(image_subscriber->m_image != nullptr);
     } else {
       GTEST_SKIP() << "No sensor to test against, skipping test";
     }
@@ -151,22 +185,25 @@ namespace {
       // Fire up ROS driver
       rclcpp::executors::SingleThreadedExecutor exec;
       exec.add_node(bottlenose_camera_driver);
-      std::thread spin_thread([&exec, &bottlenose_camera_driver]() {
+      auto image_subscriber = std::make_shared<ImageSubscriber>("image_color");
+      exec.add_node(image_subscriber);
+      std::thread spin_thread([&exec]() {
         while(!done) {
           exec.spin_once(100ms);
         }
       });
-      sleep(3);
+      sleep(expected_image_delay);
       done = true;
       spin_thread.join();
       sleep(1);
       ASSERT_TRUE(bottlenose_camera_driver->is_streaming());
+      ASSERT_TRUE(image_subscriber->m_image != nullptr);
     } else {
       GTEST_SKIP() << "No sensor to test against, skipping test";
     }
   }
 
-  TEST(CameraDrivcerTests, SetCalibration){
+  TEST(CameraDriverTests, SetCalibration){
     static atomic<bool> done(false);
     const char*mac = getenv("BOTTLENOSE");
     if(mac) {
@@ -185,19 +222,21 @@ namespace {
       // Fire up ROS driver
       rclcpp::executors::SingleThreadedExecutor exec;
       exec.add_node(bottlenose_camera_driver);
+      auto image_subscriber = std::make_shared<ImageSubscriber>("image_color");
+      exec.add_node(image_subscriber);
       std::thread spin_thread([&exec]() {
         while(!done) {
           exec.spin_once(100ms);
         }
       });
-      sleep(3);
-      sleep(3);
+      sleep(expected_image_delay);
       done = true;
       spin_thread.join();
       sleep(1);
 
       ASSERT_TRUE(bottlenose_camera_driver->is_streaming());
       ASSERT_TRUE(bottlenose_camera_driver->isCalibrated());
+      ASSERT_TRUE(image_subscriber->m_image != nullptr);
 
     } else {
       GTEST_SKIP() << "No sensor to test against, skipping test";
@@ -207,6 +246,8 @@ namespace {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
+
+  rcutils_logging_set_default_logger_level(RCUTILS_LOG_SEVERITY_DEBUG);
   rclcpp::init(0, nullptr);
   return RUN_ALL_TESTS();
 }

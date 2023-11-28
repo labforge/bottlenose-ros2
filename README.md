@@ -54,6 +54,7 @@ ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p ma
 | ```keep_partial```                       | Keep partial images (i.e. corrupted in transmission)                          | ```false```                      | :white_check_mark:  |
 | ```format```                             | Format of the camera (*)                                                      | ```1920x1080```                  |                     |
 | ```fps```                                | Target frames per second (*)                                                  | ```10.0```                       |                     |
+| ```ntpEnable```                          | Enable NTP UDP broadcast receptions on Bottlenose                             | ```false```                      |                     |
 | ***Image Sensor(s) Controls***           | (**)                                                                          |                                  |                     |
 | ```exposure```                           | Exposure time in milliseconds                                                 | ```20.0```                       | :white_check_mark:  |
 | ```gain```                               | Analog gain                                                                   | ```1.0```                        | :white_check_mark:  |

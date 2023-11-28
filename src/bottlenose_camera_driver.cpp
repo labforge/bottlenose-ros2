@@ -35,6 +35,7 @@
 
 #include "bottlenose_camera_driver.hpp"
 #include "bottlenose_parameters.hpp"
+#include "bottlenose_chunk_parser.hpp"
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
 #define BUFFER_COUNT ( 16 )
@@ -50,7 +51,10 @@ namespace bottlenose_camera_driver
   using namespace cv;
   namespace fs = std::filesystem;
 
-CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bottlenose_camera_driver", node_options)
+CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options)
+  : Node("bottlenose_camera_driver", node_options),
+  m_calibrated(false),
+  m_terminate(false)
 {
   // Allocate GEV buffers
   for ( size_t i = 0; i < BUFFER_COUNT; i++ )
@@ -64,7 +68,6 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bott
     // Add to external list - used to eventually release the buffers
     m_buffers.push_back(buffer );
   }
-  m_terminate = false;
 
   for(auto &parameter : bottlenose_parameters) {
     this->declare_parameter(parameter.name, parameter.default_value);
@@ -74,8 +77,6 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options) : Node("bott
   m_image_color = image_transport::create_camera_publisher(this, "image_color", custom_qos_profile);
   m_image_color_1 = image_transport::create_camera_publisher(this, "image_color_1", custom_qos_profile);
 
-  m_calibrated = false;
-  
   if(!is_ebus_loaded()) {
     RCLCPP_ERROR(get_logger(), "The eBus Driver is not loaded, please reinstall the driver!");
   }
@@ -146,10 +147,11 @@ std::shared_ptr<sensor_msgs::msg::Image> CameraDriver::convertFrameToMessage(IPv
     }
 
     // Timestamp from epoch conversion (Test this)
-    uint64_t seconds = timestamp / 1e6; //useconds
-    uint64_t nanoseconds = (timestamp - seconds * 1e6) * 1e3; //nanoseconds
+    uint64_t seconds = timestamp / 1e3; // milliseconds
+    uint64_t nanoseconds = (timestamp - seconds * 1e3) * 1e6; // nanoseconds
     ros_image.header.stamp.nanosec = nanoseconds;
     ros_image.header.stamp.sec = seconds;
+//    RCLCPP_DEBUG(get_logger(), "Decoded timestamp %9ld %09ld", seconds, nanoseconds);
     ros_image.header.frame_id = this->get_parameter("frame_id").as_string();
 
     auto msg_ptr_ = std::make_shared<sensor_msgs::msg::Image>(ros_image);
@@ -390,6 +392,7 @@ bool CameraDriver::set_stereo() {
 
 bool CameraDriver::set_auto_exposure() {
   bool enable_aexp = get_parameter("autoExposureEnable").as_bool();
+  RCLCPP_INFO_STREAM(get_logger(), "Auto exposure set to " << enable_aexp);
   // Apply parameter to GEV
   PvGenBoolean *gev_aexp = dynamic_cast<PvGenBoolean *>( m_device->GetParameters()->Get("autoExposureEnable"));
   if(gev_aexp == nullptr) {
@@ -407,7 +410,6 @@ bool CameraDriver::set_auto_exposure() {
       RCLCPP_ERROR(get_logger(), "Unable to register luminance target");
       return false;
     }
-
     res = gev_aexp_target->SetValue(get_parameter("autoExposureLuminanceTarget").as_int());
     if(!res.IsOK()) {
       RCLCPP_ERROR_STREAM(get_logger(), "Could not configure luminance target, cause: " << res.GetDescription().GetAscii());
@@ -419,7 +421,7 @@ bool CameraDriver::set_auto_exposure() {
       RCLCPP_ERROR(get_logger(), "Unable to register autoExposureFactor");
       return false;
     }
-    res = gev_aexp_target->SetValue(get_parameter("autoExposureFactor").as_double());
+    res = gev_aexp_gain->SetValue(get_parameter("autoExposureFactor").as_double());
     if(!res.IsOK()) {
       RCLCPP_ERROR_STREAM(get_logger(), "Could not set autoExposureFactor, cause: " << res.GetDescription().GetAscii());
       return false;
@@ -430,7 +432,7 @@ bool CameraDriver::set_auto_exposure() {
       RCLCPP_ERROR(get_logger(), "Unable to register autoGainFactor");
       return false;
     }
-    res = gev_aec_gain->SetValue(get_parameter("autoExposureFactor").as_double());
+    res = gev_aec_gain->SetValue(get_parameter("autoGainFactor").as_double());
     if(!res.IsOK()) {
       RCLCPP_ERROR_STREAM(get_logger(), "Could not set autoGainFactor, cause: " << res.GetDescription().GetAscii());
       return false;
@@ -588,6 +590,17 @@ void CameraDriver::management_thread() {
     done = true;
     return;
   }
+  if(!enable_ntp(get_parameter("ntpEnable").as_bool())) {
+    disconnect();
+    done = true;
+    return;
+  }
+  // Enable chunk data for meta information to have reliable timestamping at source
+  if(!enable_chunk("FrameInformation")) {
+    disconnect();
+    done = true;
+    return;
+  }
   // Fail hard on first runtime parameter update issues
   if(!update_runtime_parameters()) {
     disconnect();
@@ -628,10 +641,22 @@ void CameraDriver::management_thread() {
            (operationResult.GetCode() == PvResult::Code::TOO_MANY_CONSECUTIVE_RESENDS) ||
           (operationResult.GetCode() == PvResult::Code::MISSING_PACKETS) ||
           (operationResult.GetCode() == PvResult::Code::CORRUPTED_DATA)))) {
+        info_t info = {};
+        uint64_t timestamp = 0;
         switch ( buffer->GetPayloadType() ) {
           case PvPayloadTypeImage:
             img0 = buffer->GetImage();
-            m_image_msg = convertFrameToMessage(img0, buffer->GetTimestamp());
+            // Timestamp handling
+            timestamp = buffer->GetTimestamp(); // Fallback timestamp, use Pleora local time
+            if(chunkDecodeMetaInformation(buffer, &info)) {
+
+              RCLCPP_DEBUG_STREAM(get_logger(), "Bottlenose time: " << ms_to_date_string(info.real_time));
+              timestamp = info.real_time;
+            } else {
+              RCLCPP_WARN(get_logger(), "Could not decode meta information");
+            }
+
+            m_image_msg = convertFrameToMessage(img0, timestamp);
 
             if(m_image_msg != nullptr) {
               RCLCPP_DEBUG(get_logger(), "Received Image %i x %i", buffer->GetImage()->GetWidth(), buffer->GetImage()->GetHeight());
@@ -653,8 +678,15 @@ void CameraDriver::management_thread() {
           case PvPayloadTypeMultiPart:
             img0 = buffer->GetMultiPartContainer()->GetPart(0)->GetImage();
             img1 = buffer->GetMultiPartContainer()->GetPart(1)->GetImage();
-            m_image_msg = convertFrameToMessage(img0, buffer->GetTimestamp());
-            m_image_msg_1 = convertFrameToMessage(img1, buffer->GetTimestamp());
+            // Timestamp handling
+            timestamp = buffer->GetTimestamp(); // Fallback timestamp, use Pleora local time
+            if(chunkDecodeMetaInformation(buffer, &info)) {
+              timestamp = info.real_time;
+            } else {
+              RCLCPP_WARN(get_logger(), "Could not decode meta information");
+            }
+            m_image_msg = convertFrameToMessage(img0, timestamp);
+            m_image_msg_1 = convertFrameToMessage(img1, timestamp);
 
             if(m_image_msg != nullptr) {
                 RCLCPP_DEBUG(get_logger(), "Received left Image %i x %i", buffer->GetImage()->GetWidth(), buffer->GetImage()->GetHeight());
@@ -716,13 +748,13 @@ bool CameraDriver::is_streaming() {
 
 bool CameraDriver::is_ebus_loaded() {
   char buffer[128];
-  std::string result = "";
+  std::string result;
   FILE* pipe = popen("/usr/sbin/lsmod", "r");
   if (!pipe)
     return false;
 
   try {
-    while (fgets(buffer, sizeof buffer, pipe) != NULL) {
+    while (fgets(buffer, sizeof buffer, pipe) != nullptr) {
       result += buffer;
     }
   } catch (...) {
@@ -733,6 +765,52 @@ bool CameraDriver::is_ebus_loaded() {
   return result.find("ebUniversalProForEthernet") != string::npos;
 }
 
+bool CameraDriver::enable_chunk(string chunk) {
+  // Enable chunk mode for any chunk
+  if(!set_register("ChunkModeActive", true)) {
+    RCLCPP_ERROR(get_logger(), "Could not enable basic chunk output");
+    return false;
+  }
+
+  // Select the appropriate enumerator for chunk
+  PvGenParameterArray *lDeviceParams = m_device->GetParameters();
+  PvResult res;
+  PvGenParameter *param = lDeviceParams->Get("ChunkSelector");
+  if (param == nullptr) {
+    RCLCPP_ERROR(get_logger(), "Could not enable access chunk selector");
+    return false;
+  }
+  PvGenType t;
+  res = param->GetType(t);
+  if (!res.IsOK()) {
+    return false;
+  }
+  if(t == PvGenTypeEnum){
+    PvString lValue = chunk.c_str();
+    res = static_cast<PvGenEnum *>( param )->SetValue( lValue );
+    if(!res.IsOK()) {
+      RCLCPP_ERROR_STREAM(get_logger(), "Could not select chunk: " << chunk);
+      return false;
+    }
+  }
+
+  // Set the selected chunk as enabled
+  if(!set_register("ChunkEnable", true)) {
+    RCLCPP_ERROR_STREAM(get_logger(), "Could not enable chunk: " << chunk);
+    return false;
+  }
+
+  return res.IsOK();
+}
+
+bool CameraDriver::enable_ntp(bool enable) {
+  if(!set_register("ntpEnable", enable)) {
+    RCLCPP_ERROR_STREAM(get_logger(), "Could not configure NTP to be " << enable);
+    return false;
+  }
+  return true;
+}
+
 bool CameraDriver::load_calibration(uint32_t sid, std::string cname){
   std::string param = cname + "_calibration_file";
   std::string kfile_param;
@@ -741,7 +819,7 @@ bool CameraDriver::load_calibration(uint32_t sid, std::string cname){
   if((sid != LEFTCAM) && (sid != RIGHTCAM)){
     return false;
   }
-  if(cname.size() == 0){
+  if(cname.empty()){
     return false;
   }
       
@@ -812,7 +890,7 @@ bool CameraDriver::set_register(std::string regname, std::variant<int64_t, doubl
 }
 
 static void decompose_projection(double *pm, double *tvec, double *rvec){
-  if((pm == NULL) || (tvec == NULL) || (rvec == NULL)) return;
+  if((pm == nullptr) || (tvec == nullptr) || (rvec == nullptr)) return;
     
   cv::Mat P(3, 4, CV_64F, pm); //projection matrix
   cv::Mat K(3, 3, CV_64F); // intrinsic parameter matrix
