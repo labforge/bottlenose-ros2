@@ -51,6 +51,30 @@ namespace bottlenose_camera_driver
   using namespace cv;
   namespace fs = std::filesystem;
 
+  static bool parseMatrix(const std::string &str, float matrix[3][3]) {
+    std::istringstream iss(str);
+    char ch;
+    for (int i = 0; i < 3; ++i) {
+      for (int j = 0; j < 3; ++j) {
+        if (!(iss >> matrix[i][j])) {
+          return false;  // Failed to read a float
+        }
+        if (j < 2) {  // Expecting a comma after first two elements of each row
+          if (!(iss >> ch) || ch != ',') {
+            return false;
+          }
+        }
+      }
+      if (i < 2) {  // Expecting a semicolon after first two rows
+        if (!(iss >> ch) || ch != ';') {
+          return false;
+        }
+      }
+    }
+
+    return true;  // Successfully parsed the matrix
+  }
+
 CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options)
   : Node("bottlenose_camera_driver", node_options),
   m_calibrated(false),
@@ -226,6 +250,7 @@ bool CameraDriver::update_runtime_parameters() {
         RCLCPP_ERROR_STREAM(get_logger(), "Could not configure auto white balance, cause: " << res.GetDescription().GetAscii());
         return false;
       }
+      RCLCPP_DEBUG(get_logger(), "Set auto white balance to %d", enable_awb);
     }
   } catch (std::out_of_range &e) {
     // Undefined, set as well
@@ -234,17 +259,21 @@ bool CameraDriver::update_runtime_parameters() {
       RCLCPP_ERROR_STREAM(get_logger(), "Could not configure auto white balance, cause: " << res.GetDescription().GetAscii());
       return false;
     }
+    RCLCPP_DEBUG(get_logger(), "Set auto white balance to %d", enable_awb);
   }
   // propagate cache
   m_camera_parameter_cache["wbAuto"] = (int64_t)(enable_awb);
-
 
   // Only if auto exposure is not enabled
   bool enable_aexp = get_parameter("autoExposureEnable").as_bool();
   if(!enable_aexp) {
     for (auto param: {"exposure",
                       "gain"}) {
-      PvGenFloat *floatVal = static_cast<PvGenFloat *>( m_device->GetParameters()->Get(param));
+      PvGenFloat *floatVal = dynamic_cast<PvGenFloat *>( m_device->GetParameters()->Get(param));
+      if(floatVal == nullptr) {
+        RCLCPP_ERROR(get_logger(), "Could not configure parameter %s, please check you are running the latest firmware", param);
+        return false;
+      }
       double val = get_parameter(param).as_double();
       try {
         auto value = m_camera_parameter_cache.at(param);
@@ -263,8 +292,10 @@ bool CameraDriver::update_runtime_parameters() {
       RCLCPP_DEBUG_STREAM(get_logger(), "Set parameter " << param << " to " << val);
     }
   }
-
-  return set_ccm_profile();
+  if(!set_ccm_profile()) {
+    return false;
+  }
+  return set_ccm_custom();
 }
 
 bool CameraDriver::set_interval() {
@@ -373,6 +404,45 @@ bool CameraDriver::set_ccm_profile() {
     return false;
 }
 
+bool CameraDriver::set_ccm_custom() {
+  auto ccm_custom_str = get_parameter("CCMCustom").as_string();
+  if(!ccm_custom_str.empty()) {
+    try {
+      auto value = m_camera_parameter_cache.at("CCMCustom");
+      if(get<string>(value) == ccm_custom_str) {
+        return true;
+      }
+    } catch(std::out_of_range &e) { }
+
+    // Apply custom color profile
+    float matrix[3][3];
+    if(!parseMatrix(ccm_custom_str, matrix)) {
+      RCLCPP_ERROR_STREAM(get_logger(), "Invalid custom color profile: " << ccm_custom_str);
+      return false;
+    }
+    // Apply values
+    for(size_t row = 0; row < 3; row++) {
+      for(size_t col = 0; col < 3; col++) {
+        std::string param = "CCMValue" + std::to_string(row) + std::to_string(col);
+        if(!set_register(param, matrix[row][col])) {
+          RCLCPP_ERROR_STREAM(get_logger(), "Could not configure custom color profile");
+          return false;
+        }
+      }
+    }
+    PvGenCommand * cmd = dynamic_cast<PvGenCommand *>( m_device->GetParameters()->Get("SetCustomProfile"));
+    PvResult res = cmd->Execute();
+    if(res.IsFailure()) {
+      RCLCPP_ERROR_STREAM(get_logger(), "Could not apply custom color profile");
+      return false;
+    }
+    // Apply to cache
+    m_camera_parameter_cache["CCMCustom"] = ccm_custom_str;
+    RCLCPP_DEBUG_STREAM(get_logger(), "Applied custom color profile: " << ccm_custom_str);
+  }
+  return true;
+}
+
 bool CameraDriver::set_stereo() {
     bool enable_stereo = get_parameter("stereo").as_bool();
     PvGenBoolean *multipart = dynamic_cast<PvGenBoolean *>( m_device->GetParameters()->Get("GevSCCFGMultiPartEnabled"));
@@ -392,7 +462,7 @@ bool CameraDriver::set_stereo() {
 
 bool CameraDriver::set_auto_exposure() {
   bool enable_aexp = get_parameter("autoExposureEnable").as_bool();
-  RCLCPP_INFO_STREAM(get_logger(), "Auto exposure set to " << enable_aexp);
+  RCLCPP_DEBUG_STREAM(get_logger(), "Auto exposure set to " << enable_aexp);
   // Apply parameter to GEV
   PvGenBoolean *gev_aexp = dynamic_cast<PvGenBoolean *>( m_device->GetParameters()->Get("autoExposureEnable"));
   if(gev_aexp == nullptr) {
@@ -468,8 +538,8 @@ bool CameraDriver::connect() {
     disconnect();
     return false;
   }
-  m_device = static_cast<PvDeviceGEV *>( device );
-  m_stream = static_cast<PvStreamGEV *>( stream );
+  m_device = dynamic_cast<PvDeviceGEV *>( device );
+  m_stream = dynamic_cast<PvStreamGEV *>( stream );
   if(m_device == nullptr || m_stream == nullptr) {
     RCLCPP_ERROR(get_logger(), "Could not initialize GEV stack");
     disconnect();
@@ -529,6 +599,8 @@ void CameraDriver::disconnect() {
     m_device->Disconnect();
     PvDeviceGEV::Free(m_device);
   }
+  // Wipe parameter cache as we cannot control what was set before reconnect
+  m_camera_parameter_cache.clear();
   m_device = nullptr;
   m_stream = nullptr;
 }
@@ -863,6 +935,10 @@ uint32_t CameraDriver::get_num_sensors(){
 
 bool CameraDriver::set_register(std::string regname, std::variant<int64_t, double, bool> regvalue){
   PvGenParameter *lGenParameter = m_device->GetParameters()->Get(regname.c_str());
+  if(lGenParameter == nullptr) {
+    RCLCPP_ERROR_STREAM(get_logger(), "Could not configure parameter " << regname << "please check you are running the latest firmware");
+    return false;
+  }
   PvGenType lGenType;
   PvResult res = lGenParameter->GetType(lGenType);
   if(!res.IsOK()) return false;

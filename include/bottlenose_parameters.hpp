@@ -49,6 +49,8 @@ const parameter_t bottlenose_parameters[] = {
   {"wbAuto", rclcpp::ParameterValue(false)},
   /* Color Profile Presets */
   {"CCMColorProfile", rclcpp::ParameterValue("IndoorWarmLightCurtainOpen")},
+  /* Custom Color Profile, disabled by default */
+  {"CCMCustom", rclcpp::ParameterValue("") },
   /* Reception timeout */
   {"Timeout", rclcpp::ParameterValue(5000)},
   /* Black level controls */
