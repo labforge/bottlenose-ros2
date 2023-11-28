@@ -19,6 +19,7 @@
 */
 #include <PvConfigurationReader.h>
 #include "rclcpp/rclcpp.hpp"
+#include "rcutils/logging.h"
 #include "bottlenose_camera_driver.hpp"
 #include <gtest/gtest.h>
 #include <ament_index_cpp/get_package_share_directory.hpp>
@@ -245,6 +246,8 @@ namespace {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
+
+  rcutils_logging_set_default_logger_level(RCUTILS_LOG_SEVERITY_DEBUG);
   rclcpp::init(0, nullptr);
   return RUN_ALL_TESTS();
 }
