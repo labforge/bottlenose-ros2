@@ -158,8 +158,8 @@ jobs:
 
       - name: Power off CI
         uses: ./.github/workflows/ci/power
+        if: always()
         with:
-          if: always()
           state: 'off'
 
       - name: Unlock HIL
