@@ -268,7 +268,11 @@ bool CameraDriver::update_runtime_parameters() {
   if(!enable_aexp) {
     for (auto param: {"exposure",
                       "gain"}) {
-      PvGenFloat *floatVal = static_cast<PvGenFloat *>( m_device->GetParameters()->Get(param));
+      PvGenFloat *floatVal = dynamic_cast<PvGenFloat *>( m_device->GetParameters()->Get(param));
+      if(floatVal == nullptr) {
+        RCLCPP_ERROR(get_logger(), "Could not configure parameter %s, please check you are running the latest firmware", param);
+        return false;
+      }
       double val = get_parameter(param).as_double();
       try {
         auto value = m_camera_parameter_cache.at(param);
@@ -457,7 +461,7 @@ bool CameraDriver::set_stereo() {
 
 bool CameraDriver::set_auto_exposure() {
   bool enable_aexp = get_parameter("autoExposureEnable").as_bool();
-  RCLCPP_INFO_STREAM(get_logger(), "Auto exposure set to " << enable_aexp);
+  RCLCPP_DEBUG_STREAM(get_logger(), "Auto exposure set to " << enable_aexp);
   // Apply parameter to GEV
   PvGenBoolean *gev_aexp = dynamic_cast<PvGenBoolean *>( m_device->GetParameters()->Get("autoExposureEnable"));
   if(gev_aexp == nullptr) {
@@ -533,8 +537,8 @@ bool CameraDriver::connect() {
     disconnect();
     return false;
   }
-  m_device = static_cast<PvDeviceGEV *>( device );
-  m_stream = static_cast<PvStreamGEV *>( stream );
+  m_device = dynamic_cast<PvDeviceGEV *>( device );
+  m_stream = dynamic_cast<PvStreamGEV *>( stream );
   if(m_device == nullptr || m_stream == nullptr) {
     RCLCPP_ERROR(get_logger(), "Could not initialize GEV stack");
     disconnect();
@@ -930,6 +934,10 @@ uint32_t CameraDriver::get_num_sensors(){
 
 bool CameraDriver::set_register(std::string regname, std::variant<int64_t, double, bool> regvalue){
   PvGenParameter *lGenParameter = m_device->GetParameters()->Get(regname.c_str());
+  if(lGenParameter == nullptr) {
+    RCLCPP_ERROR_STREAM(get_logger(), "Could not configure parameter " << regname << "please check you are running the latest firmware");
+    return false;
+  }
   PvGenType lGenType;
   PvResult res = lGenParameter->GetType(lGenType);
   if(!res.IsOK()) return false;
