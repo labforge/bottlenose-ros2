@@ -27,6 +27,8 @@ namespace {
   using namespace std;
   using namespace std::literals::chrono_literals;
 
+  const int expected_image_delay = 10;
+
   /**
    * @brief Class to subscribe to the first message received in a topic.
    */
@@ -67,12 +69,13 @@ namespace {
       exec.add_node(bottlenose_camera_driver);
       // Create subscriber to image topic
       auto image_subscriber = std::make_shared<ImageSubscriber>("image_raw");
+      exec.add_node(image_subscriber);
       std::thread spin_thread([&exec]() {
         while(!done) {
           exec.spin_once(100ms);
         }
       });
-      sleep(3);
+      sleep(expected_image_delay);
       done = true;
       spin_thread.join();
       sleep(1);
@@ -108,12 +111,13 @@ namespace {
       exec.add_node(bottlenose_camera_driver);
       // Create subscriber to image topic
       auto image_subscriber = std::make_shared<ImageSubscriber>("image_raw");
-      std::thread spin_thread([&exec, &bottlenose_camera_driver]() {
+      exec.add_node(image_subscriber);
+      std::thread spin_thread([&exec]() {
         while(!done) {
           exec.spin_once(100ms);
         }
       });
-      sleep(3);
+      sleep(expected_image_delay);
       done = true;
       spin_thread.join();
       sleep(1);
@@ -144,12 +148,13 @@ namespace {
       rclcpp::executors::SingleThreadedExecutor exec;
       exec.add_node(bottlenose_camera_driver);
       auto image_subscriber = std::make_shared<ImageSubscriber>("image_raw");
-      std::thread spin_thread([&exec, &bottlenose_camera_driver]() {
+      exec.add_node(image_subscriber);
+      std::thread spin_thread([&exec]() {
         while(!done) {
           exec.spin_once(100ms);
         }
       });
-      sleep(3);
+      sleep(expected_image_delay);
       done = true;
       spin_thread.join();
       sleep(1);
@@ -180,12 +185,13 @@ namespace {
       rclcpp::executors::SingleThreadedExecutor exec;
       exec.add_node(bottlenose_camera_driver);
       auto image_subscriber = std::make_shared<ImageSubscriber>("image_raw");
-      std::thread spin_thread([&exec, &bottlenose_camera_driver]() {
+      exec.add_node(image_subscriber);
+      std::thread spin_thread([&exec]() {
         while(!done) {
           exec.spin_once(100ms);
         }
       });
-      sleep(3);
+      sleep(expected_image_delay);
       done = true;
       spin_thread.join();
       sleep(1);
@@ -216,12 +222,13 @@ namespace {
       rclcpp::executors::SingleThreadedExecutor exec;
       exec.add_node(bottlenose_camera_driver);
       auto image_subscriber = std::make_shared<ImageSubscriber>("image_raw");
+      exec.add_node(image_subscriber);
       std::thread spin_thread([&exec]() {
         while(!done) {
           exec.spin_once(100ms);
         }
       });
-      sleep(6);
+      sleep(expected_image_delay);
       done = true;
       spin_thread.join();
       sleep(1);
