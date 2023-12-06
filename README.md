@@ -78,8 +78,6 @@ ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p ma
 | **Auto Exposure and Auto Gain Controls** |                                                                                  |                                  |                     |
 | ```autoExposureEnable```                 | Enable auto exposure and auto gain control                                       | ```false```                      |                     |
 | ```autoExposureLuminanceTarget```        | Luminance target for exposure control ```[0, 65535]```                           | ```16384```                      |                     |
-| ```autoExposureFactor```                 | Factor for luminance error term for auto exposure control ```[-1, 1]```          | ```5e-5```                       |                     |
-| ```autoGainFactor```                     | Factor for luminance error term for auto gain control ```[-1, 1]```              | ```1e-6```                       |                     |
 | **GigE Vision Stream Parameters**        |                                                                                  |                                  |                     |
 | ```AnswerTimeout```                      | Time the GigE Vision Device can take for command response.                       | ```100```                        |                     |
 | ```CommandRetryCount```                  | Command attempts before it is considered as failed                               | ```50```                         |                     |

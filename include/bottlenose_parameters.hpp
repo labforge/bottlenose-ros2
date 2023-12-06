@@ -61,8 +61,6 @@ const parameter_t bottlenose_parameters[] = {
 
   /* Auto exposure controls */
   {"autoExposureEnable", rclcpp::ParameterValue(false)},
-  {"autoExposureFactor", rclcpp::ParameterValue(5e-5)},
-  {"autoGainFactor", rclcpp::ParameterValue(1e-6)},
   {"autoExposureLuminanceTarget", rclcpp::ParameterValue(0x4000)},
 
   /* GEV Parameters */
