@@ -213,30 +213,27 @@ bool CameraDriver::update_runtime_parameters() {
     m_camera_parameter_cache[param] = val;
     RCLCPP_DEBUG_STREAM(get_logger(), "Set parameter " << param << " to " << val);
   }
-
-  for (auto param: {"gamma",
-                    "wbBlue",
-                    "wbGreen",
-                    "wbRed"}) {
-    PvGenFloat *floatVal = static_cast<PvGenFloat *>( m_device->GetParameters()->Get(param));
-    double val = get_parameter(param).as_double();
-    try {
-      auto value = m_camera_parameter_cache.at(param);
-      if (get<double>(value) == val) {
-        continue;
-      }
-    } catch (std::out_of_range &e) {}
-
-
+  PvGenFloat *floatVal = static_cast<PvGenFloat *>( m_device->GetParameters()->Get("gamma"));
+  double val = get_parameter("gamma").as_double();
+  bool dirty = true;
+  try {
+    auto value = m_camera_parameter_cache.at("gamma");
+    if (get<double>(value) == val) {
+      dirty = false;
+    }
+  } catch (std::out_of_range &e) {}
+  if(dirty) {
     PvResult res = floatVal->SetValue(val);
     if (res.IsFailure()) {
-      RCLCPP_WARN_STREAM(get_logger(), "Could not set parameter " << param << " to " << val << " cause " << res.GetDescription().GetAscii());
+      RCLCPP_WARN_STREAM(get_logger(),
+                         "Could not set parameter gamma to " << val << " cause " << res.GetDescription().GetAscii());
       return false;
     }
     // Cache
-    m_camera_parameter_cache[param] = val;
-    RCLCPP_DEBUG_STREAM(get_logger(), "Set parameter " << param << " to " << val);
+    m_camera_parameter_cache["gamma"] = val;
+    RCLCPP_DEBUG_STREAM(get_logger(), "Set parameter gamma to " << val);
   }
+
   bool enable_awb = get_parameter("wbAuto").as_bool();
   PvGenBoolean *gev_awb = dynamic_cast<PvGenBoolean *>( m_device->GetParameters()->Get("wbAuto"));
   if(gev_awb == nullptr) {
@@ -264,6 +261,28 @@ bool CameraDriver::update_runtime_parameters() {
   }
   // propagate cache
   m_camera_parameter_cache["wbAuto"] = (int64_t)(enable_awb);
+
+  if(!enable_awb) {
+    for (auto param: {"wbBlue", "wbGreen", "wbRed"}) {
+      floatVal = static_cast<PvGenFloat *>( m_device->GetParameters()->Get(param));
+      double val = get_parameter(param).as_double();
+      try {
+        auto value = m_camera_parameter_cache.at(param);
+        if (get<double>(value) == val) {
+          continue;
+        }
+      } catch (std::out_of_range &e) {}
+
+      PvResult res = floatVal->SetValue(val);
+      if (res.IsFailure()) {
+        RCLCPP_WARN_STREAM(get_logger(), "Could not set parameter " << param << " to " << val << " cause " << res.GetDescription().GetAscii());
+        return false;
+      }
+      // Cache
+      m_camera_parameter_cache[param] = val;
+      RCLCPP_DEBUG_STREAM(get_logger(), "Set parameter " << param << " to " << val);
+    }
+  }
 
   // Only if auto exposure is not enabled
   bool enable_aexp = get_parameter("autoExposureEnable").as_bool();
