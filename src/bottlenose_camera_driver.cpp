@@ -227,9 +227,10 @@ bool CameraDriver::update_runtime_parameters() {
       }
     } catch (std::out_of_range &e) {}
 
+
     PvResult res = floatVal->SetValue(val);
     if (res.IsFailure()) {
-      RCLCPP_WARN_STREAM(get_logger(), "Could not set parameter " << param << " to " << val);
+      RCLCPP_WARN_STREAM(get_logger(), "Could not set parameter " << param << " to " << val << " cause " << res.GetDescription().GetAscii());
       return false;
     }
     // Cache
@@ -503,28 +504,6 @@ bool CameraDriver::set_auto_exposure() {
     res = gev_aexp_target->SetValue(get_parameter("autoExposureLuminanceTarget").as_int());
     if(!res.IsOK()) {
       RCLCPP_ERROR_STREAM(get_logger(), "Could not configure luminance target, cause: " << res.GetDescription().GetAscii());
-      return false;
-    }
-
-    PvGenFloat *gev_aexp_gain = dynamic_cast<PvGenFloat *>( m_device->GetParameters()->Get("autoExposureFactor"));
-    if(gev_aexp_gain == nullptr) {
-      RCLCPP_ERROR(get_logger(), "Unable to register autoExposureFactor");
-      return false;
-    }
-    res = gev_aexp_gain->SetValue(get_parameter("autoExposureFactor").as_double());
-    if(!res.IsOK()) {
-      RCLCPP_ERROR_STREAM(get_logger(), "Could not set autoExposureFactor, cause: " << res.GetDescription().GetAscii());
-      return false;
-    }
-
-    PvGenFloat *gev_aec_gain = dynamic_cast<PvGenFloat *>( m_device->GetParameters()->Get("autoGainFactor"));
-    if(gev_aec_gain == nullptr) {
-      RCLCPP_ERROR(get_logger(), "Unable to register autoGainFactor");
-      return false;
-    }
-    res = gev_aec_gain->SetValue(get_parameter("autoGainFactor").as_double());
-    if(!res.IsOK()) {
-      RCLCPP_ERROR_STREAM(get_logger(), "Could not set autoGainFactor, cause: " << res.GetDescription().GetAscii());
       return false;
     }
   }
