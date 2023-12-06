@@ -245,7 +245,7 @@ namespace {
   /**
    * Test that the driver can be initialized with a custom CCM.
    */
-  TEST(CameraDriverTests, TestCustomCCM) {
+  TEST(CameraDriverTests, TestCustomCCMFail) {
     static atomic<bool> done(false);
     const char*mac = getenv("BOTTLENOSE");
     if(mac) {
@@ -273,8 +273,8 @@ namespace {
       done = true;
       spin_thread.join();
       sleep(1);
-      ASSERT_TRUE(bottlenose_camera_driver->is_streaming());
-      ASSERT_TRUE(image_subscriber->m_image != nullptr);
+      ASSERT_FALSE(bottlenose_camera_driver->is_streaming());
+      ASSERT_TRUE(image_subscriber->m_image == nullptr);
 
     } else {
       GTEST_SKIP() << "No sensor to test against, skipping test";

@@ -436,6 +436,26 @@ bool CameraDriver::set_ccm_custom() {
       RCLCPP_ERROR_STREAM(get_logger(), "Could not apply custom color profile");
       return false;
     }
+    // Wait for parameter pass-through
+    usleep(100000);
+    // Check the return code
+    PvGenString *strStatus = dynamic_cast<PvGenString*>( m_device->GetParameters()->Get("CCM0Status"));
+    if(!strStatus) {
+      RCLCPP_ERROR_STREAM(get_logger(), "Could not apply custom color profile");
+      return false;
+    }
+    PvString statusVal;
+    res = strStatus->GetValue(statusVal);
+    if(res.IsFailure()) {
+      RCLCPP_ERROR_STREAM(get_logger(), "Could not apply custom color profile");
+      return false;
+    }
+    if(string("Custom CCM profile set") != statusVal.GetAscii()) {
+      RCLCPP_ERROR_STREAM(get_logger(), "Could not apply custom color profile");
+      return false;
+    }
+    //"Custom CCM profile set"
+
     // Apply to cache
     m_camera_parameter_cache["CCMCustom"] = ccm_custom_str;
     RCLCPP_DEBUG_STREAM(get_logger(), "Applied custom color profile: " << ccm_custom_str);
