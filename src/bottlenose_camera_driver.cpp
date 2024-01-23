@@ -779,14 +779,14 @@ void CameraDriver::management_thread() {
             m_image_msg_1 = convertFrameToMessage(img1, timestamp);
 
             if(m_image_msg != nullptr) {
-                RCLCPP_DEBUG(get_logger(), "Received left Image %i x %i", buffer->GetImage()->GetWidth(), buffer->GetImage()->GetHeight());
+                RCLCPP_DEBUG(get_logger(), "Received left Image %i x %i", img0->GetWidth(), img0->GetHeight());
                 sensor_msgs::msg::CameraInfo::SharedPtr info_msg(
                         new sensor_msgs::msg::CameraInfo(m_cinfo_manager[0]->getCameraInfo()));
                 info_msg->header = m_image_msg->header;
                 m_image_color.publish(m_image_msg, info_msg);
             }
             if(m_image_msg_1 != nullptr) {
-                RCLCPP_DEBUG(get_logger(), "Received Right Image %i x %i", buffer->GetImage()->GetWidth(), buffer->GetImage()->GetHeight());
+                RCLCPP_DEBUG(get_logger(), "Received Right Image %i x %i", img1->GetWidth(), img1->GetHeight());
                 sensor_msgs::msg::CameraInfo::SharedPtr info_msg(
                         new sensor_msgs::msg::CameraInfo(m_cinfo_manager[1]->getCameraInfo()));
                 info_msg->header = m_image_msg_1->header;
