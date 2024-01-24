@@ -63,15 +63,15 @@ const parameter_t bottlenose_parameters[] = {
   {"autoExposureEnable", rclcpp::ParameterValue(false)},
   {"autoExposureLuminanceTarget", rclcpp::ParameterValue(0x4000)},
 
-  /* GEV Parameters */
-  {"AnswerTimeout", rclcpp::ParameterValue(100)},
-  {"CommandRetryCount", rclcpp::ParameterValue(50)},
-  {"MaximumPendingResends", rclcpp::ParameterValue(0)},
-  {"MaximumResendRequestRetryByPacket", rclcpp::ParameterValue(0)},
-  {"MaximumResendGroupSize", rclcpp::ParameterValue(0)},
-  {"ResendRequestTimeout", rclcpp::ParameterValue(100)},
-  {"RequestTimeout", rclcpp::ParameterValue(10000)},
-  {"ResetOnIdle", rclcpp::ParameterValue(2000)},
+  /* GEV Parameters (Pleora defaults) */
+  {"AnswerTimeout", rclcpp::ParameterValue(1000)},
+  {"CommandRetryCount", rclcpp::ParameterValue(3)},
+  {"MaximumPendingResends", rclcpp::ParameterValue(512)},
+  {"MaximumResendRequestRetryByPacket", rclcpp::ParameterValue(3)},
+  {"MaximumResendGroupSize", rclcpp::ParameterValue(15)},
+  {"ResendRequestTimeout", rclcpp::ParameterValue(5000)},
+  {"RequestTimeout", rclcpp::ParameterValue(1000)},
+  {"ResetOnIdle", rclcpp::ParameterValue(200)},
 
   /* Calibration file parameters */
   {"camera_calibration_file", rclcpp::ParameterValue("")},

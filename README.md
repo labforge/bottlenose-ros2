@@ -79,14 +79,14 @@ ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p ma
 | ```autoExposureEnable```                 | Enable auto exposure and auto gain control                                       | ```false```                      |                     |
 | ```autoExposureLuminanceTarget```        | Luminance target for exposure control ```[0, 65535]```                           | ```16384```                      |                     |
 | **GigE Vision Stream Parameters**        |                                                                                  |                                  |                     |
-| ```AnswerTimeout```                      | Time the GigE Vision Device can take for command response.                       | ```100```                        |                     |
-| ```CommandRetryCount```                  | Command attempts before it is considered as failed                               | ```50```                         |                     |
-| ```MaximumPendingResends```              | Maximum number of packets in a block that can be missing                         | ```0```                          |                     |
-| ```MaximumResendRequestRetryByPacket```  | The maximum number of times a resend request can be issued.                      | ```0```                          |                     |
-| ```MaximumResendGroupSize```             | Maximum number of packets to resend at once                                      | ```0```                          |                     |
-| ```ResendRequestTimeout```               | Timeout for resend requests in (us)                                              | ```100```                        |                     |
-| ```RequestTimeout```                     | Maximum time that the data receiver waits for all the packets of a block (ms)    | ```10000```                      |                     |
-| ```ResetOnIdle```                        | Time without packets before resetting itself                                     | ```2000```                       |                     |
+| ```AnswerTimeout```                      | Time the GigE Vision Device can take for command response.                       | ```1000```                       |                     |
+| ```CommandRetryCount```                  | Command attempts before it is considered as failed                               | ```3```                          |                     |
+| ```MaximumPendingResends```              | Maximum number of packets in a block that can be missing                         | ```512```                        |                     |
+| ```MaximumResendRequestRetryByPacket```  | The maximum number of times a resend request can be issued.                      | ```3```                          |                     |
+| ```MaximumResendGroupSize```             | Maximum number of packets to resend at once                                      | ```15```                         |                     |
+| ```ResendRequestTimeout```               | Timeout for resend requests in (us)                                              | ```5000```                       |                     |
+| ```RequestTimeout```                     | Maximum time that the data receiver waits for all the packets of a block (ms)    | ```1000```                       |                     |
+| ```ResetOnIdle```                        | Time without packets before resetting itself                                     | ```200```                        |                     |
 | ```Timeout```                            | Buffer reception timeout in (ms)                                                 | ```5000```                       |                     |
 
 

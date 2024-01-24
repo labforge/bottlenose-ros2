@@ -588,7 +588,7 @@ bool CameraDriver::connect() {
     RCLCPP_DEBUG_STREAM(get_logger(), "Set " << param << " to " << get_parameter(param).as_int());
   }
 
-  // Stream tweaks, see https://supportcenter.pleora.com/s/article/Recommended-eBUS-Player-Settings-for-Wireless-Connection
+  // Stream settings
   for (const char*param : {"ResetOnIdle",
                            "MaximumPendingResends",
                            "MaximumResendRequestRetryByPacket",
@@ -739,7 +739,6 @@ void CameraDriver::management_thread() {
             // Timestamp handling
             timestamp = buffer->GetTimestamp(); // Fallback timestamp, use Pleora local time
             if(chunkDecodeMetaInformation(buffer, &info)) {
-
               RCLCPP_DEBUG_STREAM(get_logger(), "Bottlenose time: " << ms_to_date_string(info.real_time));
               timestamp = info.real_time;
             } else {
@@ -771,6 +770,7 @@ void CameraDriver::management_thread() {
             // Timestamp handling
             timestamp = buffer->GetTimestamp(); // Fallback timestamp, use Pleora local time
             if(chunkDecodeMetaInformation(buffer, &info)) {
+              RCLCPP_DEBUG_STREAM(get_logger(), "Bottlenose time: " << ms_to_date_string(info.real_time));
               timestamp = info.real_time;
             } else {
               RCLCPP_WARN(get_logger(), "Could not decode meta information");
@@ -804,6 +804,7 @@ void CameraDriver::management_thread() {
           RCLCPP_ERROR_STREAM(get_logger(),
                               "Acquisition operation failed with " << operationResult.GetCodeString().GetAscii()
                                                                    << " reconnecting");
+          m_stream->QueueBuffer( buffer );
           break;
         } else {
           // Notify retry
