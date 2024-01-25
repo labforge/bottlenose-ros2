@@ -27,6 +27,7 @@
 #include "rclcpp/rclcpp.hpp"
 
 #include "std_msgs/msg/string.hpp"
+#include "visualization_msgs/msg/marker_array.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 
@@ -43,6 +44,8 @@
 #include <PvBuffer.h>
 #include <PvDeviceGEV.h>
 #include <PvStreamGEV.h>
+
+#include "bottlenose_chunk_parser.hpp"
 
 namespace bottlenose_camera_driver {
   class CameraDriver : public rclcpp::Node {
@@ -70,16 +73,19 @@ namespace bottlenose_camera_driver {
     void disconnect();                    ///< Disconnect from camera.
     bool queue_buffers();                 ///< Queue buffers for GEV stack.
     void abort_buffers();                 ///< Abort buffers for GEV stack.
+    void publish_features(std::vector<keypoints_t *> &features, uint64_t timestamp); ///< Publish keypoints
     void management_thread();             ///< Management thread for interacting with GEV stack.
     void status_callback();               ///< ROS2 status callback and orchestration polled from a timer.
     static bool is_ebus_loaded();         ///< Check if the eBusSDK Driver is loaded.
-    bool enable_chunk(std::string chunk); ///< Enable chunk data
+    bool set_chunk(std::string chunk, bool enable);    ///< Enable, Disable chunk data
     bool enable_ntp(bool enable);         ///< Enable NTP
+    bool configure_feature_points();      ///< Configure feature points
 
     bool load_calibration(uint32_t sid, std::string cname); ///< load calibration data
     bool set_calibration();                 ///< set calibration on to camera
     uint32_t get_num_sensors();             ///< returns the number of sensors: 1=mono and 2=stereo    
     bool set_register(std::string, std::variant<int64_t, double, bool>); ///< set a register value on the camera
+    bool set_enum_register(std::string, std::string); ///< set a register value on the camera
     bool m_calibrated;
 
     std::atomic<bool> done;               ///< Flag for management thread to terminate.
@@ -106,6 +112,11 @@ namespace bottlenose_camera_driver {
     /// Camera publisher.
     image_transport::CameraPublisher m_image_color;
     image_transport::CameraPublisher m_image_color_1;
+
+    // Keypoints publisher.
+
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr m_keypoints;
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr m_keypoints_1;
 };
 } // namespace bottlenose_camera_driver
 #endif //__BOTTLENOSE_CAMERA_DRIVER_HPP__

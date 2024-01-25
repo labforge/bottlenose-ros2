@@ -33,6 +33,7 @@ const parameter_t bottlenose_parameters[] = {
   {"mac_address", rclcpp::ParameterValue("00:00:00:00:00:00")},
   {"keep_partial", rclcpp::ParameterValue(false)},
   {"stereo", rclcpp::ParameterValue(false)},
+  {"feature_points", rclcpp::ParameterValue("none")},
   /* Device parameters */
   {"fps", rclcpp::ParameterValue(10.0)},
   {"exposure", rclcpp::ParameterValue(20.0)},
@@ -77,6 +78,12 @@ const parameter_t bottlenose_parameters[] = {
   {"camera_calibration_file", rclcpp::ParameterValue("")},
   {"left_camera_calibration_file", rclcpp::ParameterValue("")},
   {"right_camera_calibration_file", rclcpp::ParameterValue("")},
+
+  /* Keypoint parameters */
+  {"features_max",  rclcpp::ParameterValue(1000)},
+  {"features_threshold",  rclcpp::ParameterValue(100)},
+  {"features_nms",  rclcpp::ParameterValue(false)},
+
 
   /* NTP support */
   {"ntpEnable", rclcpp::ParameterValue(false)}

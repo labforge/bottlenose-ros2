@@ -22,6 +22,9 @@
 
 #include <PvBuffer.h>
 #include <vector>
+#include <stdint.h>
+
+#define MAX_KEYPOINTS 0xFFFF
 
 /**
  * @brief ChunkIDs for possible buffers appended to the GEV buffer.
@@ -33,6 +36,23 @@ typedef enum {
   CHUNK_ID_EMBEDDINGS = 0x4004,  ///< Embeddings
   CHUNK_ID_INFO = 0x4005,        ///< Meta information
 } chunk_type_t;
+
+/**
+ * @brief Chunk data representation of a keypoint.
+ */
+typedef struct point_u16 {
+  uint16_t x;  ///< x coordinate  of the point
+  uint16_t y;  ///< y coordinate of the point
+} point_u16_t; ///< a 2D uint16 point representation
+
+/**
+ * @brief Chunk data representation of keypoints.
+ */
+typedef struct __attribute__((packed, aligned(4))) {
+  uint32_t count;
+  uint32_t fid;
+  point_u16_t points[MAX_KEYPOINTS];
+} keypoints_t;
 
 /**
  * @brief Meta information chunk data to decode timestamps.
@@ -49,6 +69,14 @@ typedef struct __attribute__((packed, aligned(4))) {
  * @return
  */
 bool chunkDecodeMetaInformation(PvBuffer *buffer, info_t *info);
+
+/**
+ * Decode keypoints from buffer, if present.
+ * @param buffer Buffer received on GEV interface
+ * @param keypoints Vector of keypoints.
+ * @return
+ */
+bool chunkDecodeKeypoints(PvBuffer *buffer, std::vector<keypoints_t> &keypoints);
 
 std::string ms_to_date_string(uint64_t ms);
 

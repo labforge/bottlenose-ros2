@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <chrono>
 #include <memory>
+#include <utility>
 #include <string>
 #include <cassert>
 #include <list>
@@ -75,6 +76,12 @@ namespace bottlenose_camera_driver
     return true;  // Successfully parsed the matrix
   }
 
+  static pair<uint64, uint64> convertTimestamp(uint64_t in) {
+    uint64_t seconds = in / 1e3; // milliseconds
+    uint64_t nanoseconds = (in - seconds * 1e3) * 1e6; // nanoseconds
+    return std::make_pair(seconds, nanoseconds);
+  }
+
 CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options)
   : Node("bottlenose_camera_driver", node_options),
   m_calibrated(false),
@@ -100,6 +107,9 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options)
   rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_default;
   m_image_color = image_transport::create_camera_publisher(this, "image_color", custom_qos_profile);
   m_image_color_1 = image_transport::create_camera_publisher(this, "image_color_1", custom_qos_profile);
+
+  m_keypoints = create_publisher<visualization_msgs::msg::MarkerArray>("features", 10);
+  m_keypoints_1 = create_publisher<visualization_msgs::msg::MarkerArray>("features_1", 10);
 
   if(!is_ebus_loaded()) {
     RCLCPP_ERROR(get_logger(), "The eBus Driver is not loaded, please reinstall the driver!");
@@ -171,6 +181,7 @@ std::shared_ptr<sensor_msgs::msg::Image> CameraDriver::convertFrameToMessage(IPv
     }
 
     // Timestamp from epoch conversion (Test this)
+    auto ts =
     uint64_t seconds = timestamp / 1e3; // milliseconds
     uint64_t nanoseconds = (timestamp - seconds * 1e3) * 1e6; // nanoseconds
     ros_image.header.stamp.nanosec = nanoseconds;
@@ -648,6 +659,46 @@ void CameraDriver::abort_buffers() {
   }
 }
 
+void CameraDriver::publish_features(std::vector<keypoints_t *> &features, uint64_t timestamp) {
+  auto marker_array = visualization_msgs::msg::MarkerArray();
+
+  for(auto &feature : features) {
+    auto marker = visualization_msgs::msg::Marker();
+    marker.header.frame_id = this->get_parameter("frame_id").as_string();
+    marker.header.stamp.sec = timestamp / 1e3;
+    marker.header.stamp.nanosec = (timestamp - marker.header.stamp.sec * 1e3) * 1e6;
+    marker.ns = "features";
+    marker.id = feature->id;
+    marker.type = visualization_msgs::msg::Marker::SPHERE;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    marker.pose.position.x = feature->x;
+    marker.pose.position.y = feature->y;
+    marker.pose.position.z = feature->z;
+    marker.pose.orientation.x = 0.0;
+    marker.pose.orientation.y = 0.0;
+    marker.pose.orientation.z = 0.0;
+    marker.pose.orientation.w = 1.0;
+    marker.scale.x = 0.01;
+    marker.scale.y = 0.01;
+    marker.scale.z = 0.01;
+    marker.color.a = 1.0;
+    marker.color.r = 1.0;
+    marker.color.g = 0.0;
+    marker.color.b = 0.0;
+
+    marker_array.markers.push_back(marker);
+  }
+
+  // Publish empty marker array if no features to erase visualization
+  if(features.size() == 0) {
+    if(get_parameter("stereo").as_bool()) {
+      m_keypoints->publish(marker_array);
+      m_keypoints_1->publish(marker_array);
+    } else {
+      m_keypoints->publish(marker_array);
+    }
+  }
+}
 
 void CameraDriver::management_thread() {
   if(!connect()) {
@@ -686,7 +737,13 @@ void CameraDriver::management_thread() {
     return;
   }
   // Enable chunk data for meta information to have reliable timestamping at source
-  if(!enable_chunk("FrameInformation")) {
+  if(!set_chunk("FrameInformation", true)) {
+    disconnect();
+    done = true;
+    return;
+  }
+  // Configure feature point
+  if(!configure_feature_points()) {
     disconnect();
     done = true;
     return;
@@ -719,6 +776,9 @@ void CameraDriver::management_thread() {
   m_device->StreamEnable();
   cmdStart->Execute();
 
+  // Buffer for keypoint chunk decoding
+  vector<keypoints_t> feature_points;
+
   while(!m_terminate) {
     PvBuffer *buffer = nullptr;
     PvResult operationResult;
@@ -743,6 +803,9 @@ void CameraDriver::management_thread() {
               timestamp = info.real_time;
             } else {
               RCLCPP_WARN(get_logger(), "Could not decode meta information");
+            }
+            if(chunkDecodeKeypoints(buffer, feature_points)) {
+              RCLCPP_DEBUG(get_logger(), "Received feature_points %zu", feature_points.size());
             }
 
             m_image_msg = convertFrameToMessage(img0, timestamp);
@@ -774,6 +837,9 @@ void CameraDriver::management_thread() {
               timestamp = info.real_time;
             } else {
               RCLCPP_WARN(get_logger(), "Could not decode meta information");
+            }
+            if(chunkDecodeKeypoints(buffer, feature_points)) {
+              RCLCPP_DEBUG(get_logger(), "Received feature_points %zu", feature_points.size());
             }
             m_image_msg = convertFrameToMessage(img0, timestamp);
             m_image_msg_1 = convertFrameToMessage(img1, timestamp);
@@ -856,7 +922,7 @@ bool CameraDriver::is_ebus_loaded() {
   return result.find("ebUniversalProForEthernet") != string::npos;
 }
 
-bool CameraDriver::enable_chunk(string chunk) {
+bool CameraDriver::set_chunk(std::string chunk, bool enable) {
   // Enable chunk mode for any chunk
   if(!set_register("ChunkModeActive", true)) {
     RCLCPP_ERROR(get_logger(), "Could not enable basic chunk output");
@@ -864,40 +930,67 @@ bool CameraDriver::enable_chunk(string chunk) {
   }
 
   // Select the appropriate enumerator for chunk
-  PvGenParameterArray *lDeviceParams = m_device->GetParameters();
-  PvResult res;
-  PvGenParameter *param = lDeviceParams->Get("ChunkSelector");
-  if (param == nullptr) {
-    RCLCPP_ERROR(get_logger(), "Could not enable access chunk selector");
+  if(!set_enum_register("ChunkSelector", chunk)) {
+    RCLCPP_ERROR_STREAM(get_logger(), "Could not select chunk: " << chunk);
     return false;
-  }
-  PvGenType t;
-  res = param->GetType(t);
-  if (!res.IsOK()) {
-    return false;
-  }
-  if(t == PvGenTypeEnum){
-    PvString lValue = chunk.c_str();
-    res = static_cast<PvGenEnum *>( param )->SetValue( lValue );
-    if(!res.IsOK()) {
-      RCLCPP_ERROR_STREAM(get_logger(), "Could not select chunk: " << chunk);
-      return false;
-    }
   }
 
-  // Set the selected chunk as enabled
-  if(!set_register("ChunkEnable", true)) {
+  // Set the selected chunk as enabled or disabled
+  if(!set_register("ChunkEnable", enable)) {
     RCLCPP_ERROR_STREAM(get_logger(), "Could not enable chunk: " << chunk);
     return false;
   }
 
-  return res.IsOK();
+  return true;
 }
 
 bool CameraDriver::enable_ntp(bool enable) {
   if(!set_register("ntpEnable", enable)) {
     RCLCPP_ERROR_STREAM(get_logger(), "Could not configure NTP to be " << enable);
     return false;
+  }
+  return true;
+}
+
+bool CameraDriver::configure_feature_points() {
+  bool enabled = false;
+  if(get_parameter("feature_points").as_string() == "none") {
+    // Disable feature_points
+    RCLCPP_DEBUG(get_logger(), "Disabling feature_points");
+    return set_chunk("FeaturePoints", false);
+  } else if(get_parameter("feature_points").as_string() == "gftt") {
+    RCLCPP_DEBUG(get_logger(), "Enabling gftt features");
+    if(!set_enum_register("KPCornerType", "GFTT")) {
+      RCLCPP_ERROR(get_logger(), "Could not configure feature_points");
+      return false;
+    }
+    // FIXME: GFTT specific parameters
+    enabled = true;
+  } else if(get_parameter("feature_points").as_string() == "fast9") {
+    RCLCPP_DEBUG(get_logger(), "Enabling fast9 features");
+    if(!set_enum_register("KPCornerType", "Fast9n")) {
+      RCLCPP_ERROR(get_logger(), "Could not configure feature_points");
+      return false;
+    }
+    if(!set_register("KPThreshold", get_parameter("features_threshold").as_int())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure feature_points");
+      return false;
+    }
+    enabled = true;
+  } else {
+    RCLCPP_ERROR_STREAM(get_logger(), "Invalid setting for \'feature_points\' = "
+      << get_parameter("feature_points").as_string() << "valid choices are {'none', 'gftt', 'fast9'}");
+    return false;
+  }
+  if(enabled) {
+    if(!set_register("KPMaxNumber", get_parameter("features_max").as_int())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure feature_points");
+      return false;
+    }
+    if(!set_chunk("FeaturePoints", true)) {
+      RCLCPP_ERROR(get_logger(), "Could not configure feature_points");
+      return false;
+    }
   }
   return true;
 }
@@ -979,6 +1072,34 @@ bool CameraDriver::set_register(std::string regname, std::variant<int64_t, doubl
       break;
     default:
       return false;
+  }
+
+  return res.IsOK();
+}
+
+bool CameraDriver::set_enum_register(std::string regname, std::string value) {
+  PvGenParameter *lGenParameter = m_device->GetParameters()->Get(regname.c_str());
+  if(lGenParameter == nullptr) {
+    RCLCPP_ERROR_STREAM(get_logger(), "Could not configure parameter " << regname << "please check you are running the latest firmware");
+    return false;
+  }
+
+  PvGenType lGenType;
+  PvResult res = lGenParameter->GetType(lGenType);
+  if(!res.IsOK())
+    return false;
+
+  if(lGenType == PvGenTypeEnum){
+    PvString lValue = value.c_str();
+    res = static_cast<PvGenEnum *>( lGenParameter )->SetValue( lValue );
+    if(!res.IsOK()) {
+      RCLCPP_ERROR_STREAM(get_logger(), "Could not set enum register: " << regname << " to " << value
+        << " cause: " << res.GetDescription().GetAscii());
+      return false;
+    }
+  } else {
+    RCLCPP_ERROR_STREAM(get_logger(), "Register " << regname << " is not an enum");
+    return false;
   }
 
   return res.IsOK();

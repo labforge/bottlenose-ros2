@@ -34,6 +34,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 find_package(camera_info_manager REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(camera_calibration_parsers REQUIRED)
@@ -56,6 +57,7 @@ ament_target_dependencies(bottlenose_camera_driver
     "rclcpp_components"
     "sensor_msgs"
     "std_msgs"
+    "visualization_msgs"
     "camera_info_manager"
     "image_transport"
     "camera_calibration_parsers"

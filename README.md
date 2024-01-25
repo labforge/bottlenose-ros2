@@ -55,6 +55,8 @@ ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p ma
 | ```format```                             | Format of the camera (*)                                                         | ```1920x1080```                  |                     |
 | ```fps```                                | Target frames per second (*)                                                     | ```10.0```                       |                     |
 | ```ntpEnable```                          | Enable NTP UDP broadcast receptions on Bottlenose                                | ```false```                      |                     |
+| ```stereo```                             | Enable stereo mode (Bottlenose Stereo only)                                      | ```false```                      |                     |
+| ```feature_points```                     | Configure feature point type {```none```, ```gftt```, ```fast9```)               | ```none```                       |                     |
 | ***Image Sensor(s) Controls***           | (**)                                                                             |                                  |                     |
 | ```exposure```                           | Exposure time in milliseconds                                                    | ```20.0```                       | :white_check_mark:  |
 | ```gain```                               | Analog gain                                                                      | ```1.0```                        | :white_check_mark:  |
@@ -78,6 +80,10 @@ ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p ma
 | **Auto Exposure and Auto Gain Controls** |                                                                                  |                                  |                     |
 | ```autoExposureEnable```                 | Enable auto exposure and auto gain control                                       | ```false```                      |                     |
 | ```autoExposureLuminanceTarget```        | Luminance target for exposure control ```[0, 65535]```                           | ```16384```                      |                     |
+| **Feature Point Controls**               |                                                                                  |                                  |                     |
+| ```features_max```                       | Maximum number of features to detect                                             | ```1000```                       |                     |
+| ```features_threshold```                 | Threshold for feature detection ```[0,255]``` (***fast9 only***)                 | ```100```                        |                     |
+| ```features_nms```                       | Use Non-maximum suppression (***fast9 only***)                                   | ```false```                      |                     |
 | **GigE Vision Stream Parameters**        |                                                                                  |                                  |                     |
 | ```AnswerTimeout```                      | Time the GigE Vision Device can take for command response.                       | ```1000```                       |                     |
 | ```CommandRetryCount```                  | Command attempts before it is considered as failed                               | ```3```                          |                     |
