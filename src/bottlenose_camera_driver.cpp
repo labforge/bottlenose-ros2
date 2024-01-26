@@ -108,8 +108,8 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options)
   m_image_color = image_transport::create_camera_publisher(this, "image_color", custom_qos_profile);
   m_image_color_1 = image_transport::create_camera_publisher(this, "image_color_1", custom_qos_profile);
 
-  m_keypoints = create_publisher<visualization_msgs::msg::MarkerArray>("features", 10);
-  m_keypoints_1 = create_publisher<visualization_msgs::msg::MarkerArray>("features_1", 10);
+  m_keypoints = create_publisher<visualization_msgs::msg::ImageMarker>("features", 10);
+  m_keypoints_1 = create_publisher<visualization_msgs::msg::ImageMarker>("features_1", 10);
 
   if(!is_ebus_loaded()) {
     RCLCPP_ERROR(get_logger(), "The eBus Driver is not loaded, please reinstall the driver!");
@@ -181,11 +181,9 @@ std::shared_ptr<sensor_msgs::msg::Image> CameraDriver::convertFrameToMessage(IPv
     }
 
     // Timestamp from epoch conversion (Test this)
-    auto ts =
-    uint64_t seconds = timestamp / 1e3; // milliseconds
-    uint64_t nanoseconds = (timestamp - seconds * 1e3) * 1e6; // nanoseconds
-    ros_image.header.stamp.nanosec = nanoseconds;
-    ros_image.header.stamp.sec = seconds;
+    auto ts = convertTimestamp(timestamp);
+    ros_image.header.stamp.nanosec = ts.second;
+    ros_image.header.stamp.sec = ts.first;
 //    RCLCPP_DEBUG(get_logger(), "Decoded timestamp %9ld %09ld", seconds, nanoseconds);
     ros_image.header.frame_id = this->get_parameter("frame_id").as_string();
 
@@ -659,43 +657,42 @@ void CameraDriver::abort_buffers() {
   }
 }
 
-void CameraDriver::publish_features(std::vector<keypoints_t *> &features, uint64_t timestamp) {
-  auto marker_array = visualization_msgs::msg::MarkerArray();
+void CameraDriver::publish_features(const std::vector<keypoints_t> &features, const uint64_t &timestamp) {
+  auto ts = convertTimestamp(timestamp);
 
-  for(auto &feature : features) {
-    auto marker = visualization_msgs::msg::Marker();
+  for(auto &feature_list : features) {
+    visualization_msgs::msg::ImageMarker marker;
+    marker.type = visualization_msgs::msg::ImageMarker::POINTS;
+    marker.scale = 3;
+    marker.filled = 0;
+    marker.action = visualization_msgs::msg::ImageMarker::ADD;
+    std_msgs::msg::ColorRGBA outline_color;
+    outline_color.r = 1.0;
+    outline_color.g = 0.0;
+    outline_color.b = 0.0;
+    outline_color.a = 1.0;
     marker.header.frame_id = this->get_parameter("frame_id").as_string();
-    marker.header.stamp.sec = timestamp / 1e3;
-    marker.header.stamp.nanosec = (timestamp - marker.header.stamp.sec * 1e3) * 1e6;
+    marker.header.stamp.sec = ts.first;
+    marker.header.stamp.nanosec = ts.second;
     marker.ns = "features";
-    marker.id = feature->id;
-    marker.type = visualization_msgs::msg::Marker::SPHERE;
-    marker.action = visualization_msgs::msg::Marker::ADD;
-    marker.pose.position.x = feature->x;
-    marker.pose.position.y = feature->y;
-    marker.pose.position.z = feature->z;
-    marker.pose.orientation.x = 0.0;
-    marker.pose.orientation.y = 0.0;
-    marker.pose.orientation.z = 0.0;
-    marker.pose.orientation.w = 1.0;
-    marker.scale.x = 0.01;
-    marker.scale.y = 0.01;
-    marker.scale.z = 0.01;
-    marker.color.a = 1.0;
-    marker.color.r = 1.0;
-    marker.color.g = 0.0;
-    marker.color.b = 0.0;
-
-    marker_array.markers.push_back(marker);
-  }
-
-  // Publish empty marker array if no features to erase visualization
-  if(features.size() == 0) {
-    if(get_parameter("stereo").as_bool()) {
-      m_keypoints->publish(marker_array);
-      m_keypoints_1->publish(marker_array);
+    for(size_t i = 0; i < feature_list.count; i++) {
+      auto pt = geometry_msgs::msg::Point();
+      pt.x = feature_list.points[i].x;
+      pt.y = feature_list.points[i].y;
+      pt.z = 0;
+//      RCLCPP_DEBUG(get_logger(), "(%f, %f)", pt.x, pt.y);
+      marker.points.push_back(pt);
+      marker.outline_colors.push_back(outline_color);
+    }
+    // FIXME: Check with martin if this is the right way to do it
+    if(feature_list.fid == 0 || feature_list.fid == 2) {
+      m_keypoints->publish(marker);
+      RCLCPP_DEBUG(get_logger(), "Published %zu keypoints stream %i fid %i", marker.points.size(), 0, feature_list.fid);
+    } else if(feature_list.fid == 1 || feature_list.fid == 3) {
+      m_keypoints_1->publish(marker);
+      RCLCPP_DEBUG(get_logger(), "Published %zu keypoints stream %i fid %i", marker.points.size(), 1, feature_list.fid);
     } else {
-      m_keypoints->publish(marker_array);
+      RCLCPP_WARN(get_logger(), "Invalid feature list id %d", feature_list.fid);
     }
   }
 }
@@ -805,7 +802,7 @@ void CameraDriver::management_thread() {
               RCLCPP_WARN(get_logger(), "Could not decode meta information");
             }
             if(chunkDecodeKeypoints(buffer, feature_points)) {
-              RCLCPP_DEBUG(get_logger(), "Received feature_points %zu", feature_points.size());
+              this->publish_features(feature_points, timestamp);
             }
 
             m_image_msg = convertFrameToMessage(img0, timestamp);
@@ -839,7 +836,7 @@ void CameraDriver::management_thread() {
               RCLCPP_WARN(get_logger(), "Could not decode meta information");
             }
             if(chunkDecodeKeypoints(buffer, feature_points)) {
-              RCLCPP_DEBUG(get_logger(), "Received feature_points %zu", feature_points.size());
+              this->publish_features(feature_points, timestamp);
             }
             m_image_msg = convertFrameToMessage(img0, timestamp);
             m_image_msg_1 = convertFrameToMessage(img1, timestamp);

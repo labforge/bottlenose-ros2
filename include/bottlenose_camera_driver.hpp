@@ -27,11 +27,12 @@
 #include "rclcpp/rclcpp.hpp"
 
 #include "std_msgs/msg/string.hpp"
-#include "visualization_msgs/msg/marker_array.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
-
 #include "sensor_msgs/image_encodings.hpp"
+#include "visualization_msgs/msg/marker_array.hpp"
+#include "visualization_msgs/msg/image_marker.hpp"
+#include "geometry_msgs/msg/point.hpp"
 
 #include <camera_info_manager/camera_info_manager.hpp>
 #include <image_transport/image_transport.hpp>
@@ -73,7 +74,7 @@ namespace bottlenose_camera_driver {
     void disconnect();                    ///< Disconnect from camera.
     bool queue_buffers();                 ///< Queue buffers for GEV stack.
     void abort_buffers();                 ///< Abort buffers for GEV stack.
-    void publish_features(std::vector<keypoints_t *> &features, uint64_t timestamp); ///< Publish keypoints
+    void publish_features(const std::vector<keypoints_t> &features, const uint64_t &timestamp); ///< Publish keypoints
     void management_thread();             ///< Management thread for interacting with GEV stack.
     void status_callback();               ///< ROS2 status callback and orchestration polled from a timer.
     static bool is_ebus_loaded();         ///< Check if the eBusSDK Driver is loaded.
@@ -115,8 +116,8 @@ namespace bottlenose_camera_driver {
 
     // Keypoints publisher.
 
-    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr m_keypoints;
-    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr m_keypoints_1;
+    rclcpp::Publisher<visualization_msgs::msg::ImageMarker>::SharedPtr m_keypoints;
+    rclcpp::Publisher<visualization_msgs::msg::ImageMarker>::SharedPtr m_keypoints_1;
 };
 } // namespace bottlenose_camera_driver
 #endif //__BOTTLENOSE_CAMERA_DRIVER_HPP__
