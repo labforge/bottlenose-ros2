@@ -16,7 +16,9 @@
 include_directories(
         /opt/pleora/ebus_sdk/Ubuntu-22.04-x86_64/include/
         /opt/pleora/ebus_sdk/Ubuntu-20.04-x86_64/include/
-        /opt/pleora/ebus_sdk/Ubuntu-18.04-x86_64/include/)
+        /opt/pleora/ebus_sdk/Ubuntu-18.04-x86_64/include/
+        "C:/Program Files/Pleora Technologies Inc/eBUS SDK/Includes"
+)
 
 set(_eBUS_LIB_DIRS
         /opt/pleora/ebus_sdk/Ubuntu-22.04-x86_64/lib/
@@ -25,28 +27,44 @@ set(_eBUS_LIB_DIRS
         /opt/pleora/ebus_sdk/Ubuntu-22.04-x86_64/lib/genicam/bin/Linux64_x64/
         /opt/pleora/ebus_sdk/Ubuntu-20.04-x86_64/lib/genicam/bin/Linux64_x64/
         /opt/pleora/ebus_sdk/Ubuntu-18.04-x86_64/lib/genicam/bin/Linux64_x64/
+        "C:/Program Files/Pleora Technologies Inc/eBUS SDK/Libraries"
         CACHE INTERNAL "Ebus library search paths")
 
-set(_eBUS_LIB_LIST
-        PvBase
-        PvDevice
-        PvStream
-        PvVirtualDevice
-        PvPersistence
-        PvSystem
-        PvBuffer
-        PvGenICam
-        PvSerial
-        PvTransmitter
-        # Genicam stuff
-        GCBase_gcc48_v3_3
-        GenApi_gcc48_v3_3
-        log4cpp_gcc48_v3_3
-        Log_gcc48_v3_3
-        MathParser_gcc48_v3_3
-        NodeMapData_gcc48_v3_3
-        XmlParser_gcc48_v3_3
-    CACHE INTERNAL "Ebus library list")
+IF (WIN32)
+        set(_eBUS_LIB_LIST
+                PvBase64
+                PvDevice64
+                PvStream64
+                PvVirtualDevice64
+                PvPersistence64
+                PvSystem64
+                PvBuffer64
+                PvGenICam64
+                PvSerial64
+                PvTransmitter64
+            CACHE INTERNAL "Ebus library list")
+ELSE()
+        set(_eBUS_LIB_LIST
+                PvBase
+                PvDevice
+                PvStream
+                PvVirtualDevice
+                PvPersistence
+                PvSystem
+                PvBuffer
+                PvGenICam
+                PvSerial
+                PvTransmitter
+                # Genicam stuff
+                GCBase_gcc48_v3_3
+                GenApi_gcc48_v3_3
+                log4cpp_gcc48_v3_3
+                Log_gcc48_v3_3
+                MathParser_gcc48_v3_3
+                NodeMapData_gcc48_v3_3
+                XmlParser_gcc48_v3_3
+            CACHE INTERNAL "Ebus library list")
+ENDIF()
 
 # Loop over library names
 string (REPLACE " " ";" _eBUS_LIB_LIST "${_eBUS_LIB_LIST}")

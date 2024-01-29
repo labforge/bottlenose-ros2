@@ -19,7 +19,16 @@
         G. M. Tchamgoue <martin@labforge.ca>  
 */
 
+#ifndef _MSC_VER
 #include <unistd.h>
+#define sleep_ms(ms) usleep(ms*1000);
+#else
+#include <windows.h>
+#define sleep_ms(ms) Sleep(ms);
+#endif
+
+
+
 #include <chrono>
 #include <memory>
 #include <string>
@@ -40,7 +49,7 @@
 
 #define BUFFER_COUNT ( 16 )
 #define BUFFER_SIZE ( 3840 * 2160 * 3 ) // 4K UHD, YUV422 + ~1 image plane to account for chunk data
-#define WAIT_PROPAGATE() usleep(250 * 1000)
+#define WAIT_PROPAGATE() sleep_ms(250)
 #define LEFTCAM (0)
 #define RIGHTCAM (1)
 
@@ -457,7 +466,7 @@ bool CameraDriver::set_ccm_custom() {
       return false;
     }
     // Wait for parameter pass-through
-    usleep(100000);
+    sleep_ms(100);
     // Check the return code
     PvGenString *strStatus = dynamic_cast<PvGenString*>( m_device->GetParameters()->Get("CCM0Status"));
     if(!strStatus) {
@@ -837,6 +846,7 @@ bool CameraDriver::is_streaming() {
 }
 
 bool CameraDriver::is_ebus_loaded() {
+#ifndef _MSC_VER
   char buffer[128];
   std::string result;
   FILE* pipe = popen("/usr/sbin/lsmod", "r");
@@ -853,6 +863,9 @@ bool CameraDriver::is_ebus_loaded() {
   }
 
   return result.find("ebUniversalProForEthernet") != string::npos;
+#else
+  return true;
+#endif
 }
 
 bool CameraDriver::enable_chunk(string chunk) {

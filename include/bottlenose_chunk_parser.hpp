@@ -20,6 +20,16 @@
 #ifndef __BOTTLENOSE_CHUNK_PARSER_HPP__
 #define __BOTTLENOSE_CHUNK_PARSER_HPP__
 
+#if defined(__GNUC__) // GCC and Clang
+#define PACKED_STRUCT_BEGIN() struct __attribute__((packed, aligned(4)))
+#define PACKED_STRUCT_END()
+#elif defined(_MSC_VER) // MSVC
+#define PACKED_STRUCT_BEGIN() __pragma(pack(push, 1)) struct
+#define PACKED_STRUCT_END() __pragma(pack(pop))
+#else
+#error Unsupported compiler
+#endif
+
 #include <PvBuffer.h>
 #include <vector>
 
@@ -37,10 +47,10 @@ typedef enum {
 /**
  * @brief Meta information chunk data to decode timestamps.
  */
-typedef struct __attribute__((packed, aligned(4))) {
+typedef PACKED_STRUCT_BEGIN() {
   uint64_t real_time;
   uint32_t count;
-} info_t;
+} PACKED_STRUCT_END() info_t;
 
 /**
  * Decode meta information from buffer, if present.

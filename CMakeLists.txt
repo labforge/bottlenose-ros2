@@ -37,7 +37,14 @@ find_package(sensor_msgs REQUIRED)
 find_package(camera_info_manager REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(camera_calibration_parsers REQUIRED)
-find_package(OpenCV 4 REQUIRED)
+
+IF (WIN32)
+    find_package(OpenCV 3 REQUIRED)
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+ELSE()
+    find_package(GTest REQUIRED)
+    find_package(OpenCV 4 REQUIRED)
+ENDIF()
 
 add_library(bottlenose_camera_driver SHARED
         src/bottlenose_camera_driver.cpp
@@ -71,6 +78,8 @@ add_executable(bottlenose_camera_driver_node
 target_link_libraries(bottlenose_camera_driver_node
         bottlenose_camera_driver
 )
+IF (WIN32)
+ELSE()
 add_executable(test_integration
         test/test.cpp
         )
@@ -80,6 +89,7 @@ target_include_directories(test_integration
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>)
 #gtest_discover_tests(test_integration)
+ENDIF()
 
 ament_target_dependencies(bottlenose_camera_driver_node
   "rclcpp"
