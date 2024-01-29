@@ -8,6 +8,7 @@ This driver currently supports color-image streaming from Bottlenose Mono and St
   * ROS2 Foxy or newer:
     * tested with [ROS2 Humble](https://docs.ros.org/en/foxy/Releases/Release-Humble-Hawksbill.html) on Ubuntu 22.04
     * tested with [ROS2 Foxy](https://docs.ros.org/en/foxy/Releases/Release-Foxy-Fitzroy.html) on Ubuntu 20.04
+    * experimental Windows 10 support
   * eBUS SDK 6.3, please see the releases in our [SDK Demos](https://github.com/labforge/sdk-demos/releases)
   * Bottlenose Mono or Stereo Camera, at [firmware](https://github.com/labforge/bottlenose/releases/) v0.1.100 or newer
 
@@ -15,6 +16,8 @@ This driver currently supports color-image streaming from Bottlenose Mono and St
 
  * Set up your [ros2 workspace](https://docs.ros.org/en/humble/Tutorials/Beginner-Client-Libraries/Creating-A-Workspace/Creating-A-Workspace.html)
  * Clone this repository into the workspace
+
+### Linux
  * Build and install with ```colcon```
 ```
 # Build and install all workspace nodes
@@ -23,6 +26,17 @@ colcon build --symlink-install
 # Resource the local configuration
 source install/local_setup.bash
 ```
+
+### Windows
+*Note Windows support is preliminary. The binary ROS2 installation does not allow for easy 3rd party package addition
+via rosdep. You may also have to manually build utility packages such as [Image View](https://github.com/ros-perception/image_pipeline/tree/humble) etc
+in your ros workspace from source. *.
+
+ * Build and install with ```colcon```
+```
+colcon build --merge-install --event-handlers console_direct+ --event-handlers desktop_notification-
+call install\local_setup.bat
+``` 
 
 ## Usage
  * Start the driver node directly or via launch file
