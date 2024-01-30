@@ -118,9 +118,35 @@ ros2 run image_view image_view --ros-args --remap /image:=/image_color_1
 ```
 bottlenose_camera_driver
  |
- +-- camera_image_color      : Color image stream of Bottlenose camera (in case of Stereo of the left sensor)
- +-- camera_image_color_1    : Color image stream of Bottlenose camera (in case of Stereo of the right sensor, not supported for Mono models)
+ +-- image_color      : Color image stream of Bottlenose camera (in case of Stereo of the left sensor)
+ +-- image_color_1    : Color image stream of Bottlenose camera (in case of Stereo of the right sensor, not supported for Mono models)
+ +-- detections       : Detections2D array of detected features in left (image_color) or mono sensor
+ +-- features         : ImageMarker2D array of detected features in left (image_color) or mono sensor
+ +-- features_1       : ImageMarker2D array of detected features in right (image_color_1) sensor (Bottlenose Stereo only)
 ```
+
+### Featurepoint example
+```bash
+ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args \
+    -p mac_address:="<MAC>" \ 
+    -p stereo:=true \
+    -p feature_points:=fast9 \
+    -p features_threshold:=10
+```
+ * Enable stereo processing and set the feature point type to ```fast9``` with a confidence threshold of ```10```
+ * You can use [Foxglove studio](https://foxglove.dev/) to visualize the makers in the image
+
+### AI example
+```bash
+ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args \
+  -p mac_address:="<MAC>" \ 
+  -p ai_model:=<absolute_path>yolov3_1_416_416_3.tar \
+  -p DNNConfidence:=0.01 
+```
+* Enable AI detections on Bottlenose using the yolov3 model with a confidence threshold of ```0.01``` 
+  (see [our models](https://github.com/labforge/models)).
+* You can use [Detection Visualizer](https://github.com/labforge/ros2_detection_visualizer) to annotate the images with 
+  the detections and subscribe to the annotated images in [Foxglove studio](https://foxglove.dev/) 
 
 ### Save topics in a bag
 ```
