@@ -135,7 +135,7 @@ bottlenose_camera_driver
  +-- pointcloud       : PointCloud2 messages of sparse triangulated feature points (Bottlenose Stereo only)
 ```
 
-### Featurepoint example
+### Feature Point example
 ```bash
 ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args \
     -p mac_address:="<MAC>" \ 
