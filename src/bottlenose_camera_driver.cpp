@@ -143,6 +143,8 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options)
 
   m_detections = create_publisher<vision_msgs::msg::Detection2DArray>("detections", 10);
 
+  m_pointcloud = create_publisher<sensor_msgs::msg::PointCloud2>("pointcloud", 10);
+
   if(!is_ebus_loaded()) {
     RCLCPP_ERROR(get_logger(), "The eBus Driver is not loaded, please reinstall the driver!");
   }
@@ -359,6 +361,22 @@ bool CameraDriver::update_runtime_parameters() {
   return set_ccm_custom();
 }
 
+bool CameraDriver::is_stereo() {
+  PvGenString *model = dynamic_cast<PvGenString *>( m_device->GetParameters()->Get("DeviceModelName"));
+  if(!model) {
+    RCLCPP_ERROR(get_logger(), "Could not determine device model");
+    return false;
+  }
+  PvString modelName;
+  PvResult res = model->GetValue(modelName);
+  if(res.IsFailure()) {
+    RCLCPP_ERROR(get_logger(), "Could not determine device model");
+    return false;
+  }
+  string val = modelName.GetAscii();
+  return val.find("_ST") != string::npos;
+}
+
 bool CameraDriver::set_interval() {
   PvGenFloat *interval = dynamic_cast<PvGenFloat *>( m_device->GetParameters()->Get("interval"));
   if(interval == nullptr) {
@@ -525,6 +543,10 @@ bool CameraDriver::set_ccm_custom() {
 }
 
 bool CameraDriver::set_stereo() {
+    // Ignore for bottlenose mono
+    if(!is_stereo()) {
+        return true;
+    }
     bool enable_stereo = get_parameter("stereo").as_bool();
     PvGenBoolean *multipart = dynamic_cast<PvGenBoolean *>( m_device->GetParameters()->Get("GevSCCFGMultiPartEnabled"));
     if(multipart == nullptr) {
@@ -777,6 +799,11 @@ void CameraDriver::management_thread() {
     done = true;
     return;
   }
+  if(!configure_point_cloud()) {
+    disconnect();
+    done = true;
+    return;
+  }
   // Configure ai model
   if(!configure_ai_model()) {
     disconnect();
@@ -829,6 +856,7 @@ void CameraDriver::management_thread() {
         info_t info = {};
         bboxes_t bboxes = {};
         uint64_t timestamp = 0;
+        pointcloud_t point_cloud = {};
         switch ( buffer->GetPayloadType() ) {
           case PvPayloadTypeImage:
             img0 = buffer->GetImage();
@@ -845,6 +873,9 @@ void CameraDriver::management_thread() {
             }
             if(chunkDecodeBoundingBoxes(buffer, bboxes)) {
               this->publish_bboxes(bboxes, timestamp);
+            }
+            if(chunkDecodePointCloud(buffer, point_cloud)) {
+              this->publish_pointcloud(point_cloud, timestamp);
             }
             m_image_msg = convertFrameToMessage(img0, timestamp);
 
@@ -881,6 +912,9 @@ void CameraDriver::management_thread() {
             }
             if(chunkDecodeBoundingBoxes(buffer, bboxes)) {
               this->publish_bboxes(bboxes, timestamp);
+            }
+            if(chunkDecodePointCloud(buffer, point_cloud)) {
+              this->publish_pointcloud(point_cloud, timestamp);
             }
             m_image_msg = convertFrameToMessage(img0, timestamp);
             m_image_msg_1 = convertFrameToMessage(img1, timestamp);
@@ -971,6 +1005,58 @@ void CameraDriver::publish_bboxes(const bboxes_t &bboxes, const uint64_t &timest
   msg.header.stamp.nanosec = ts.second;
   m_detections->publish(msg);
   RCLCPP_DEBUG(get_logger(), "Published %u bounding boxes stream %i fid %i", bboxes.count, 0, bboxes.fid);
+}
+
+void CameraDriver::publish_pointcloud(const pointcloud_t &pointcloud, const uint64_t &timestamp) {
+  auto ts = convertTimestamp(timestamp);
+
+  sensor_msgs::msg::PointField x_field;
+  x_field.name = "x";
+  x_field.offset = 0; // Assuming 'x' is the first field, so offset is 0
+  x_field.datatype = sensor_msgs::msg::PointField::FLOAT32;
+  x_field.count = 1; // Typically, each coordinate is just one element
+
+
+  sensor_msgs::msg::PointField y_field;
+  y_field.name = "y";
+  y_field.offset = 4; // Assuming 'x' is 4 bytes, 'y' starts after 'x'
+  y_field.datatype = sensor_msgs::msg::PointField::FLOAT32;
+  y_field.count = 1;
+
+  sensor_msgs::msg::PointField z_field;
+  z_field.name = "z";
+  z_field.offset = 8; // Assuming 'x' and 'y' are 4 bytes each, 'z' starts after 'y'
+  z_field.datatype = sensor_msgs::msg::PointField::FLOAT32;
+  z_field.count = 1;
+
+  sensor_msgs::msg::PointCloud2 msg;
+  // Define fields
+  msg.fields.push_back(x_field);
+  msg.fields.push_back(y_field);
+  msg.fields.push_back(z_field);
+  // Set other necessary fields
+  msg.height = 1;  // If your cloud is unordered, height is 1
+  msg.width = pointcloud.count;  // Number of points in the cloud
+
+  // Point step is the size of a point in bytes
+  msg.point_step = sizeof(float) * 3;
+  msg.row_step = msg.point_step * msg.width; // Row step is point step times the width
+  msg.is_dense = false;  // If there are no invalid (NaN, Inf) points, set to true
+
+  msg.data.resize(msg.row_step * msg.height);
+
+  for(size_t i = 0; i < pointcloud.count; i++) {
+    // Copy data into cloud_msg.data
+    std::memcpy(&msg.data[i * msg.point_step + x_field.offset], &pointcloud.points[i].x, sizeof(float));
+    std::memcpy(&msg.data[i * msg.point_step + y_field.offset], &pointcloud.points[i].x, sizeof(float));
+    std::memcpy(&msg.data[i * msg.point_step + z_field.offset], &pointcloud.points[i].x, sizeof(float));
+//    std::memcpy(&msg.data[i * msg.point_step + intensity_field.offset], &intensity, sizeof(float));
+  }
+  msg.header.frame_id = this->get_parameter("frame_id").as_string();
+  msg.header.stamp.sec = ts.first;
+  msg.header.stamp.nanosec = ts.second;
+  m_pointcloud->publish(msg);
+  RCLCPP_WARN(get_logger(), "Decoded point cloud with %u points", pointcloud.count);
 }
 
 bool CameraDriver::is_streaming() {
@@ -1067,6 +1153,21 @@ bool CameraDriver::configure_feature_points() {
     }
   }
   return true;
+}
+
+bool CameraDriver::configure_point_cloud() {
+  if(!is_stereo()) {
+    return true;
+  }
+
+  bool enabled = get_parameter("sparse_point_cloud").as_bool();
+  if(!set_chunk("SparsePointCloud", enabled)) {
+    RCLCPP_ERROR(get_logger(), "Could not configure point cloud");
+    return false;
+  }
+  // FIXME: Matching parameters
+
+  return enabled;
 }
 
 bool CameraDriver::configure_ai_model() {

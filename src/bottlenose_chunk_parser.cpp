@@ -220,6 +220,20 @@ bool chunkDecodeBoundingBoxes(PvBuffer *buffer, bboxes_t &bboxes) {
   return parsed;
 }
 
+bool chunkDecodePointCloud(PvBuffer *buffer, pointcloud_t &pointcloud) {
+  uint8_t *data = getChunkRawData(buffer, CHUNK_ID_POINTCLOUD);
+  if(data == nullptr) return false;
+
+  bzero(&pointcloud, sizeof(pointcloud_t));
+
+  pointcloud.count = uintFromBytes(data, 4, true);
+
+  uint32_t offset = 1 * sizeof(uint32_t);
+  memcpy(pointcloud.points, &data[offset], sizeof(vector3f_t) * pointcloud.count);
+
+  return true;
+}
+
 std::string ms_to_date_string(uint64_t ms) {
   // Convert milliseconds to seconds
   std::chrono::seconds seconds(ms / 1000);

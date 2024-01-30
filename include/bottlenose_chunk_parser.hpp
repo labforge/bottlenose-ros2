@@ -36,6 +36,8 @@ typedef enum {
   CHUNK_ID_DNNBBOXES = 0x4003,   ///< Bounding boxes for detected targets
   CHUNK_ID_EMBEDDINGS = 0x4004,  ///< Embeddings
   CHUNK_ID_INFO = 0x4005,        ///< Meta information
+  CHUNK_ID_MATCHES = 0x4006,     ///< Matches
+  CHUNK_ID_POINTCLOUD = 0x4007   ///< Point cloud
 } chunk_type_t;
 
 /**
@@ -103,6 +105,11 @@ typedef struct __attribute__((packed, aligned(4))) {
   bbox_t box[MAX_BBOXES];
 } bboxes_t;
 
+typedef struct __attribute__((packed, aligned(4))) {
+  uint32_t count;
+  vector3f_t points[MAX_KEYPOINTS];
+} pointcloud_t;
+
 /**
  * @brief Meta information chunk data to decode timestamps.
  */
@@ -136,6 +143,14 @@ bool chunkDecodeKeypoints(PvBuffer *buffer, std::vector<keypoints_t> &keypoints)
  * @return true if present, false if not present or corrupted.
  */
 bool chunkDecodeBoundingBoxes(PvBuffer *buffer, bboxes_t &bboxes);
+
+/**
+ * Decode point cloud from buffer, if present.
+ * @param buffer Buffer received on GEV interface
+ * @param pointcloud Decoded point cloud
+ * @return true if present, false if not present or corrupted.
+ */
+bool chunkDecodePointCloud(PvBuffer *buffer, pointcloud_t &pointcloud);
 
 std::string ms_to_date_string(uint64_t ms);
 

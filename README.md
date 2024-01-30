@@ -1,6 +1,10 @@
 # FIXME: Martin
  * Unity calibration file for Bottlenose Stereo, Mono
 
+# FIXME: Thomas
+ * Foxy support
+ * Parameters for gftt, and matching
+
 # ROS2 Camera Driver for Bottlenose Cameras
 
 [![ContinousIntegration](https://github.com/labforge/bottlenose-ros2/actions/workflows/ci.yml/badge.svg)](https://github.com/labforge/bottlenose-ros2/actions/workflows/ci.yml)
@@ -61,6 +65,7 @@ ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p ma
 | ```stereo```                             | Enable stereo mode (Bottlenose Stereo only)                                      | ```false```                      |                     |
 | ```feature_points```                     | Configure feature point type {```none```, ```gftt```, ```fast9```)               | ```none```                       |                     |
 | ```ai_model```                           | Configure the path to the AI model file (enables Bottlenose on-board AI)         | ```""```                         |                     |
+| ```sparse_point_cloud```                 | Enable sparse point-cloud output (Stereo only)                                   | ```false```                      |                     |
 | ***Image Sensor(s) Controls***           | (**)                                                                             |                                  |                     |
 | ```exposure```                           | Exposure time in milliseconds                                                    | ```20.0```                       | :white_check_mark:  |
 | ```gain```                               | Analog gain                                                                      | ```1.0```                        | :white_check_mark:  |
@@ -92,6 +97,7 @@ ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p ma
 | ```DNNMaxDetections```                   | Maximum number of detections                                                     | ```100```                        |                     |
 | ```DNNNonMaxSuppression```               | Set the non-maximum suppression value for bounding boxes.                        | ```0.45```                       |                     |
 | ```DNNConfidence```                      | Set confidence threshold of the detector.                                        | ```0.2```                        |                     |
+| **Sparse Point Cloud Controls**          |                                                                                  |                                  |                     |
 | **GigE Vision Stream Parameters**        |                                                                                  |                                  |                     |
 | ```AnswerTimeout```                      | Time the GigE Vision Device can take for command response.                       | ```1000```                       |                     |
 | ```CommandRetryCount```                  | Command attempts before it is considered as failed                               | ```3```                          |                     |
@@ -126,6 +132,7 @@ bottlenose_camera_driver
  +-- detections       : Detections2D array of detected features in left (image_color) or mono sensor
  +-- features         : ImageMarker2D array of detected features in left (image_color) or mono sensor
  +-- features_1       : ImageMarker2D array of detected features in right (image_color_1) sensor (Bottlenose Stereo only)
+ +-- pointcloud       : PointCloud2 messages of sparse triangulated feature points (Bottlenose Stereo only)
 ```
 
 ### Featurepoint example

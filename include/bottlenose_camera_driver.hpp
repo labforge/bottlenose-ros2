@@ -30,6 +30,7 @@
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/image_encodings.hpp"
+#include "sensor_msgs/msg/point_cloud2.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
 #include "visualization_msgs/msg/image_marker.hpp"
 #include "geometry_msgs/msg/point.hpp"
@@ -64,6 +65,7 @@ namespace bottlenose_camera_driver {
      */
     std::shared_ptr<sensor_msgs::msg::Image> convertFrameToMessage(IPvImage *image, uint64_t timestamp);
 
+    bool is_stereo();                     ///< Check if device is Bottlenose stereo
     bool set_interval();                  ///< Set camera frame rate.
     bool set_format();                    ///< Set camera format.
     bool set_ccm_profile();               ///< Apply color profile
@@ -77,6 +79,7 @@ namespace bottlenose_camera_driver {
     void abort_buffers();                 ///< Abort buffers for GEV stack.
     void publish_features(const std::vector<keypoints_t> &features, const uint64_t &timestamp); ///< Publish keypoints
     void publish_bboxes(const bboxes_t &bboxes, const uint64_t &timestamp); ///< Publish bounding boxes
+    void publish_pointcloud(const pointcloud_t &pointcloud, const uint64_t &timestamp); ///< Publish point cloud
     void management_thread();             ///< Management thread for interacting with GEV stack.
     void status_callback();               ///< ROS2 status callback and orchestration polled from a timer.
     static bool is_ebus_loaded();         ///< Check if the eBusSDK Driver is loaded.
@@ -84,6 +87,7 @@ namespace bottlenose_camera_driver {
     bool enable_ntp(bool enable);         ///< Enable NTP
     bool configure_feature_points();      ///< Configure feature points
     bool configure_ai_model();            ///< Configure AI model
+    bool configure_point_cloud();         ///< Configure triangulated point cloud
 
     bool load_calibration(uint32_t sid, std::string cname); ///< load calibration data
     bool set_calibration();                 ///< set calibration on to camera
@@ -126,6 +130,9 @@ namespace bottlenose_camera_driver {
 
     // Detections publisher (only sensor 0 "left")
     rclcpp::Publisher<vision_msgs::msg::Detection2DArray>::SharedPtr m_detections;
+
+    // Triangulated point-cloud publisher.
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr m_pointcloud;
 };
 } // namespace bottlenose_camera_driver
 #endif //__BOTTLENOSE_CAMERA_DRIVER_HPP__

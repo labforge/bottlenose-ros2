@@ -35,6 +35,7 @@ const parameter_t bottlenose_parameters[] = {
   {"stereo", rclcpp::ParameterValue(false)},
   {"feature_points", rclcpp::ParameterValue("none")},
   {"ai_model", rclcpp::ParameterValue("")},
+  {"sparse_point_cloud", rclcpp::ParameterValue(false)},
   /* Device parameters */
   {"fps", rclcpp::ParameterValue(10.0)},
   {"exposure", rclcpp::ParameterValue(20.0)},
