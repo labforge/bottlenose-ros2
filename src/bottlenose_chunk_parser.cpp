@@ -190,6 +190,36 @@ bool chunkDecodeKeypoints(PvBuffer *buffer, std::vector<keypoints_t> &keypoints)
   return parsed;
 }
 
+bool parseChunkBoundingBoxData(uint8_t *data, bboxes_t *boxes){
+  if(data == nullptr) return false;
+  if(boxes == nullptr) return false;
+
+  uint32_t frame_id = uintFromBytes(data, 4, true);
+  uint32_t num_boxes = uintFromBytes(&data[4], 4, true);
+
+  if((num_boxes == 0) || (num_boxes > MAX_BBOXES)){
+    return false;
+  }
+  if(frame_id > 3) return false;
+
+  boxes->count = num_boxes;
+  boxes->fid = frame_id;
+  memcpy(boxes->box, &data[8], sizeof(bbox_t) * boxes->count);
+
+  return true;
+}
+
+bool chunkDecodeBoundingBoxes(PvBuffer *buffer, bboxes_t &bboxes) {
+  uint8_t *data = getChunkRawData(buffer, CHUNK_ID_DNNBBOXES);
+
+  if(data == nullptr) return false;
+
+  bzero(&bboxes, sizeof(bboxes_t));
+  bool parsed = parseChunkBoundingBoxData(data, &bboxes);
+
+  return parsed;
+}
+
 std::string ms_to_date_string(uint64_t ms) {
   // Convert milliseconds to seconds
   std::chrono::seconds seconds(ms / 1000);

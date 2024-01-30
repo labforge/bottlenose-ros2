@@ -33,6 +33,7 @@
 #include "visualization_msgs/msg/marker_array.hpp"
 #include "visualization_msgs/msg/image_marker.hpp"
 #include "geometry_msgs/msg/point.hpp"
+#include "vision_msgs/msg/detection2_d_array.hpp"
 
 #include <camera_info_manager/camera_info_manager.hpp>
 #include <image_transport/image_transport.hpp>
@@ -75,6 +76,7 @@ namespace bottlenose_camera_driver {
     bool queue_buffers();                 ///< Queue buffers for GEV stack.
     void abort_buffers();                 ///< Abort buffers for GEV stack.
     void publish_features(const std::vector<keypoints_t> &features, const uint64_t &timestamp); ///< Publish keypoints
+    void publish_bboxes(const bboxes_t &bboxes, const uint64_t &timestamp); ///< Publish bounding boxes
     void management_thread();             ///< Management thread for interacting with GEV stack.
     void status_callback();               ///< ROS2 status callback and orchestration polled from a timer.
     static bool is_ebus_loaded();         ///< Check if the eBusSDK Driver is loaded.
@@ -119,9 +121,11 @@ namespace bottlenose_camera_driver {
     image_transport::CameraPublisher m_image_color_1;
 
     // Keypoints publisher.
-
     rclcpp::Publisher<visualization_msgs::msg::ImageMarker>::SharedPtr m_keypoints;
     rclcpp::Publisher<visualization_msgs::msg::ImageMarker>::SharedPtr m_keypoints_1;
+
+    // Detections publisher (only sensor 0 "left")
+    rclcpp::Publisher<vision_msgs::msg::Detection2DArray>::SharedPtr m_detections;
 };
 } // namespace bottlenose_camera_driver
 #endif //__BOTTLENOSE_CAMERA_DRIVER_HPP__

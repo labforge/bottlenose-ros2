@@ -85,7 +85,7 @@ const parameter_t bottlenose_parameters[] = {
   {"features_threshold",  rclcpp::ParameterValue(100)},
   {"features_nms",  rclcpp::ParameterValue(false)},
   /* DNN parameters */
-  {"DNNTopK", rclcpp::ParameterValue(1)},
+//  {"DNNTopK", rclcpp::ParameterValue(1)}, // Not needed for Bounding boxes
   {"DNNMaxDetections", rclcpp::ParameterValue(100)},
   {"DNNNonMaxSuppression", rclcpp::ParameterValue(0.45)},
   {"DNNConfidence", rclcpp::ParameterValue(0.2)},

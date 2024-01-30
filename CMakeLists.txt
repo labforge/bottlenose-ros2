@@ -34,6 +34,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(vision_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(camera_info_manager REQUIRED)
 find_package(image_transport REQUIRED)
@@ -50,20 +51,21 @@ target_include_directories(bottlenose_camera_driver
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
-    $eBUS_INCLUDE_DIRS
-    ${CURL_INCLUDE_DIR})
-target_link_libraries(bottlenose_camera_driver ${eBUS_LIBRARIES} ${CURL_LIBRARIES})
+    $eBUS_INCLUDE_DIRS)
+target_link_libraries(bottlenose_camera_driver ${eBUS_LIBRARIES})
 
 ament_target_dependencies(bottlenose_camera_driver
     "rclcpp"
     "rclcpp_components"
     "sensor_msgs"
     "std_msgs"
+    "vision_msgs"
     "visualization_msgs"
     "camera_info_manager"
     "image_transport"
     "camera_calibration_parsers"
     "OpenCV"
+    "CURL"
 )
 
 rclcpp_components_register_nodes(bottlenose_camera_driver "bottlenose_camera_driver::CameraDriver")

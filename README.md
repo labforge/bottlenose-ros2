@@ -86,7 +86,6 @@ ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p ma
 | ```features_threshold```                 | Threshold for feature detection ```[0,255]``` (***fast9 only***)                 | ```100```                        |                     |
 | ```features_nms```                       | Use Non-maximum suppression (***fast9 only***)                                   | ```false```                      |                     |
 | **AI Model Controls**                    |                                                                                  |                                  |                     |
-| ```DNNTopK```                            | Set the number of possible predictions by a classifier                           | ```1```                          |                     |
 | ```DNNMaxDetections```                   | Maximum number of detections                                                     | ```100```                        |                     |
 | ```DNNNonMaxSuppression```               | Set the non-maximum suppression value for bounding boxes.                        | ```0.45```                       |                     |
 | ```DNNConfidence```                      | Set confidence threshold of the detector.                                        | ```0.2```                        |                     |

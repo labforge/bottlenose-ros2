@@ -141,6 +141,8 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options)
   m_keypoints = create_publisher<visualization_msgs::msg::ImageMarker>("features", 10);
   m_keypoints_1 = create_publisher<visualization_msgs::msg::ImageMarker>("features_1", 10);
 
+  m_detections = create_publisher<vision_msgs::msg::Detection2DArray>("detections", 10);
+
   if(!is_ebus_loaded()) {
     RCLCPP_ERROR(get_logger(), "The eBus Driver is not loaded, please reinstall the driver!");
   }
@@ -825,6 +827,7 @@ void CameraDriver::management_thread() {
           (operationResult.GetCode() == PvResult::Code::MISSING_PACKETS) ||
           (operationResult.GetCode() == PvResult::Code::CORRUPTED_DATA)))) {
         info_t info = {};
+        bboxes_t bboxes = {};
         uint64_t timestamp = 0;
         switch ( buffer->GetPayloadType() ) {
           case PvPayloadTypeImage:
@@ -840,7 +843,9 @@ void CameraDriver::management_thread() {
             if(chunkDecodeKeypoints(buffer, feature_points)) {
               this->publish_features(feature_points, timestamp);
             }
-
+            if(chunkDecodeBoundingBoxes(buffer, bboxes)) {
+              this->publish_bboxes(bboxes, timestamp);
+            }
             m_image_msg = convertFrameToMessage(img0, timestamp);
 
             if(m_image_msg != nullptr) {
@@ -873,6 +878,9 @@ void CameraDriver::management_thread() {
             }
             if(chunkDecodeKeypoints(buffer, feature_points)) {
               this->publish_features(feature_points, timestamp);
+            }
+            if(chunkDecodeBoundingBoxes(buffer, bboxes)) {
+              this->publish_bboxes(bboxes, timestamp);
             }
             m_image_msg = convertFrameToMessage(img0, timestamp);
             m_image_msg_1 = convertFrameToMessage(img1, timestamp);
@@ -930,6 +938,39 @@ void CameraDriver::management_thread() {
   abort_buffers();
   disconnect();
   done = true;
+}
+
+void CameraDriver::publish_bboxes(const bboxes_t &bboxes, const uint64_t &timestamp) {
+  auto ts = convertTimestamp(timestamp);
+  vision_msgs::msg::Detection2DArray msg;
+
+  for(size_t i = 0; i < bboxes.count; i++) {
+    auto height = bboxes.box[i].bottom - bboxes.box[i].top;
+    auto width = bboxes.box[i].right - bboxes.box[i].left;
+
+    // Encode the bounding box
+    vision_msgs::msg::BoundingBox2D bbox;
+    bbox.center.position.x = bboxes.box[i].left + width / 2.0;
+    bbox.center.position.y = bboxes.box[i].top + height / 2.0;
+    bbox.size_x = width;
+    bbox.size_y = height;
+
+    // Encode the class
+    vision_msgs::msg::ObjectHypothesisWithPose hyp;
+    hyp.hypothesis.class_id = bboxes.box[i].label;
+    hyp.hypothesis.score = bboxes.box[i].score;
+
+    vision_msgs::msg::Detection2D det;
+    det.bbox = bbox;
+    det.results.push_back(hyp);
+
+    msg.detections.push_back(det);
+  }
+  msg.header.frame_id = this->get_parameter("frame_id").as_string();
+  msg.header.stamp.sec = ts.first;
+  msg.header.stamp.nanosec = ts.second;
+  m_detections->publish(msg);
+  RCLCPP_DEBUG(get_logger(), "Published %u bounding boxes stream %i fid %i", bboxes.count, 0, bboxes.fid);
 }
 
 bool CameraDriver::is_streaming() {
@@ -1054,7 +1095,6 @@ bool CameraDriver::configure_ai_model() {
       RCLCPP_ERROR(get_logger(), "Could not determine model status");
       return false;
     }
-    RCLCPP_ERROR(get_logger(), "Step 1.2");
     // Reset transfer
     if (status) {
       res = enable->SetValue(false);
@@ -1063,16 +1103,14 @@ bool CameraDriver::configure_ai_model() {
         return false;
       }
     }
-    RCLCPP_ERROR(get_logger(), "Step 1.3");
     res = enable->SetValue(true);
     if (res.IsFailure()) {
       RCLCPP_ERROR(get_logger(), "Could not initiate model transfer");
       return false;
     }
-    RCLCPP_ERROR(get_logger(), "Step 2");
     size_t trials = 10;
+    PvString modelStatus;
     while (trials-- > 0) {
-      PvString modelStatus;
       res = model->GetValue(modelStatus);
       string modelStatusStr = modelStatus.GetAscii();
       if (res.IsFailure()) {
@@ -1084,44 +1122,73 @@ bool CameraDriver::configure_ai_model() {
       }
       usleep(100000);
     }
+    if(trials == 0) {
+      RCLCPP_ERROR(get_logger(), "Could not file transfer");
+      return false;
+    }
     filesystem::path fsPath(get_parameter("ai_model").as_string());
     string basename = fsPath.filename().string();
     string target = string("ftp://anonymous:@") + ipAddress + "/" + basename;
     if(!ftp_upload(target, get_parameter("ai_model").as_string())) {
       return false;
     }
+    trials = 10;
+    while (trials-- > 0) {
+      res = model->GetValue(modelStatus);
+      string modelStatusStr = modelStatus.GetAscii();
+      if (res.IsFailure()) {
+        RCLCPP_ERROR(get_logger(), "Could not determine model status");
+        return false;
+      }
+      if (modelStatusStr.find("Loaded") != std::string::npos) {
+        break;
+      }
+      usleep(100000);
+    }
+    if(trials == 0) {
+      RCLCPP_ERROR(get_logger(), "Could not initialize model");
+      return false;
+    } else {
+      RCLCPP_DEBUG(get_logger(), "Model loaded, last status %s", modelStatus.GetAscii());
+    }
+
     // Disable debugging
     if(!set_register("DNNDrawOnStream", false)) {
-      RCLCPP_ERROR(get_logger(), "Could not configure AI model");
+      RCLCPP_ERROR(get_logger(), "Could not configure AI model: DNNDrawOnStream");
       return false;
     }
     // Enable label output
     if(!set_register("DNNOutputLabels", true)) {
-      RCLCPP_ERROR(get_logger(), "Could not configure AI model");
+      RCLCPP_ERROR(get_logger(), "Could not configure AI model: DNNOutputLabels");
       return false;
     }
-    // Set DNN parameters
-    if(!set_register("DNNTopK", get_parameter("DNNTopK").as_int())) {
-      RCLCPP_ERROR(get_logger(), "Could not configure AI model");
-      return false;
-    }
+//    // Set DNN parameters : invalid for bboxes
+//    if(!set_register("DNNTopK", get_parameter("DNNTopK").as_int())) {
+//      RCLCPP_ERROR(get_logger(), "Could not configure AI model: DNNTopK");
+//      return false;
+//    }
     if(!set_register("DNNMaxDetections", get_parameter("DNNMaxDetections").as_int())) {
-      RCLCPP_ERROR(get_logger(), "Could not configure AI model");
+      RCLCPP_ERROR(get_logger(), "Could not configure AI model: DNNMaxDetections");
       return false;
     }
     if(!set_register("DNNNonMaxSuppression", get_parameter("DNNNonMaxSuppression").as_double())) {
-      RCLCPP_ERROR(get_logger(), "Could not configure AI model");
+      RCLCPP_ERROR(get_logger(), "Could not configure AI model: DNNNonMaxSuppression");
       return false;
     }
     if(!set_register("DNNConfidence", get_parameter("DNNConfidence").as_double())) {
-      RCLCPP_ERROR(get_logger(), "Could not configure AI model");
+      RCLCPP_ERROR(get_logger(), "Could not configure AI model: DNNConfidence");
       return false;
     }
+    enabled = true;
   }
 
   // Enable or disable model based on outcome of previous check
   if(!set_register("DNNEnable", enabled)) {
     RCLCPP_ERROR(get_logger(), "Could not configure DNNEnable");
+    return false;
+  }
+  if(!set_chunk("BoundingBoxes", enabled)) {
+    RCLCPP_ERROR(get_logger(), "Could not configure feature_points");
     return false;
   }
   return true;
