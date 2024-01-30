@@ -34,6 +34,7 @@ const parameter_t bottlenose_parameters[] = {
   {"keep_partial", rclcpp::ParameterValue(false)},
   {"stereo", rclcpp::ParameterValue(false)},
   {"feature_points", rclcpp::ParameterValue("none")},
+  {"ai_model", rclcpp::ParameterValue("")},
   /* Device parameters */
   {"fps", rclcpp::ParameterValue(10.0)},
   {"exposure", rclcpp::ParameterValue(20.0)},
@@ -83,7 +84,11 @@ const parameter_t bottlenose_parameters[] = {
   {"features_max",  rclcpp::ParameterValue(1000)},
   {"features_threshold",  rclcpp::ParameterValue(100)},
   {"features_nms",  rclcpp::ParameterValue(false)},
-
+  /* DNN parameters */
+  {"DNNTopK", rclcpp::ParameterValue(1)},
+  {"DNNMaxDetections", rclcpp::ParameterValue(100)},
+  {"DNNNonMaxSuppression", rclcpp::ParameterValue(0.45)},
+  {"DNNConfidence", rclcpp::ParameterValue(0.2)},
 
   /* NTP support */
   {"ntpEnable", rclcpp::ParameterValue(false)}

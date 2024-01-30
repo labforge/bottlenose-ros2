@@ -81,12 +81,16 @@ namespace bottlenose_camera_driver {
     bool set_chunk(std::string chunk, bool enable);    ///< Enable, Disable chunk data
     bool enable_ntp(bool enable);         ///< Enable NTP
     bool configure_feature_points();      ///< Configure feature points
+    bool configure_ai_model();            ///< Configure AI model
 
     bool load_calibration(uint32_t sid, std::string cname); ///< load calibration data
     bool set_calibration();                 ///< set calibration on to camera
     uint32_t get_num_sensors();             ///< returns the number of sensors: 1=mono and 2=stereo    
     bool set_register(std::string, std::variant<int64_t, double, bool>); ///< set a register value on the camera
     bool set_enum_register(std::string, std::string); ///< set a register value on the camera
+
+    bool ftp_upload(const std::string &ftp_url, const std::string &file_path);
+
     bool m_calibrated;
 
     std::atomic<bool> done;               ///< Flag for management thread to terminate.

@@ -27,17 +27,23 @@
 #include <cassert>
 #include <list>
 #include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <arpa/inet.h>  // For inet_ntoa
+#include <netinet/in.h> // For struct in_addr
 
 #include <PvDevice.h>
 #include <PvStream.h>
 #include <PvSystem.h>
 #include <PvBuffer.h>
 #include <opencv2/opencv.hpp>
+#include <curl/curl.h>
 
 #include "bottlenose_camera_driver.hpp"
 #include "bottlenose_parameters.hpp"
 #include "bottlenose_chunk_parser.hpp"
 #include <ament_index_cpp/get_package_share_directory.hpp>
+#include <sys/stat.h>
 
 #define BUFFER_COUNT ( 16 )
 #define BUFFER_SIZE ( 3840 * 2160 * 3 ) // 4K UHD, YUV422 + ~1 image plane to account for chunk data
@@ -80,6 +86,30 @@ namespace bottlenose_camera_driver
     uint64_t seconds = in / 1e3; // milliseconds
     uint64_t nanoseconds = (in - seconds * 1e3) * 1e6; // nanoseconds
     return std::make_pair(seconds, nanoseconds);
+  }
+
+  /**
+   * @brief Callback for reading data from curl.
+   * @param ptr Buffer to write to.
+   * @param size Size of each element to read.
+   * @param nmemb Number of elements to read.
+   * @param stream Opened file stream.
+   * @return IO return code.
+   */
+  static size_t curlReadCallback(void *ptr, size_t size, size_t nmemb, FILE *stream) {
+    size_t retcode = fread(ptr, size, nmemb, stream);
+    return retcode;
+  }
+
+  /**
+   * @brief Convert integer coded IP address to string.
+   * @param ip IP address.
+   * @return String representing the IP address.
+   */
+  string ipv4ToString(uint32_t ip) {
+    struct in_addr ip_addr;
+    ip_addr.s_addr = htonl(ip); // Ensure network byte order
+    return std::string(inet_ntoa(ip_addr));
   }
 
 CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options)
@@ -745,6 +775,12 @@ void CameraDriver::management_thread() {
     done = true;
     return;
   }
+  // Configure ai model
+  if(!configure_ai_model()) {
+    disconnect();
+    done = true;
+    return;
+  }
   // Fail hard on first runtime parameter update issues
   if(!update_runtime_parameters()) {
     disconnect();
@@ -992,6 +1028,105 @@ bool CameraDriver::configure_feature_points() {
   return true;
 }
 
+bool CameraDriver::configure_ai_model() {
+  bool enabled = false;
+  if(get_parameter("ai_model").as_string().empty()) {
+    RCLCPP_DEBUG(get_logger(), "AI model disabled");
+  } else {
+    // Figure out network configuration
+    PvGenInteger *address = static_cast<PvGenInteger *>( m_device->GetParameters()->Get("GevCurrentIPAddress"));
+    PvGenBoolean *enable = static_cast<PvGenBoolean *>( m_device->GetParameters()->Get("EnableWeightsUpdate"));
+    PvGenString *model = static_cast<PvGenString *>( m_device->GetParameters()->Get("DNNStatus"));
+    if (enable == nullptr || address == nullptr || model == nullptr) {
+      RCLCPP_ERROR(get_logger(), "Could not configure AI model, please update your firmware");
+      return false;
+    }
+    int64_t intIpAddress;
+    PvResult res = address->GetValue(intIpAddress);
+    if (res.IsFailure()) {
+      RCLCPP_ERROR(get_logger(), "Could not enumerate network address");
+      return false;
+    }
+    string ipAddress = ipv4ToString(intIpAddress);
+    bool status;
+    res = enable->GetValue(status);
+    if (res.IsFailure()) {
+      RCLCPP_ERROR(get_logger(), "Could not determine model status");
+      return false;
+    }
+    RCLCPP_ERROR(get_logger(), "Step 1.2");
+    // Reset transfer
+    if (status) {
+      res = enable->SetValue(false);
+      if (res.IsFailure()) {
+        RCLCPP_ERROR(get_logger(), "Could not reset model transfer");
+        return false;
+      }
+    }
+    RCLCPP_ERROR(get_logger(), "Step 1.3");
+    res = enable->SetValue(true);
+    if (res.IsFailure()) {
+      RCLCPP_ERROR(get_logger(), "Could not initiate model transfer");
+      return false;
+    }
+    RCLCPP_ERROR(get_logger(), "Step 2");
+    size_t trials = 10;
+    while (trials-- > 0) {
+      PvString modelStatus;
+      res = model->GetValue(modelStatus);
+      string modelStatusStr = modelStatus.GetAscii();
+      if (res.IsFailure()) {
+        RCLCPP_ERROR(get_logger(), "Could not determine model status");
+        return false;
+      }
+      if (modelStatusStr.find("FTP running") != std::string::npos) {
+        break;
+      }
+      usleep(100000);
+    }
+    filesystem::path fsPath(get_parameter("ai_model").as_string());
+    string basename = fsPath.filename().string();
+    string target = string("ftp://anonymous:@") + ipAddress + "/" + basename;
+    if(!ftp_upload(target, get_parameter("ai_model").as_string())) {
+      return false;
+    }
+    // Disable debugging
+    if(!set_register("DNNDrawOnStream", false)) {
+      RCLCPP_ERROR(get_logger(), "Could not configure AI model");
+      return false;
+    }
+    // Enable label output
+    if(!set_register("DNNOutputLabels", true)) {
+      RCLCPP_ERROR(get_logger(), "Could not configure AI model");
+      return false;
+    }
+    // Set DNN parameters
+    if(!set_register("DNNTopK", get_parameter("DNNTopK").as_int())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure AI model");
+      return false;
+    }
+    if(!set_register("DNNMaxDetections", get_parameter("DNNMaxDetections").as_int())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure AI model");
+      return false;
+    }
+    if(!set_register("DNNNonMaxSuppression", get_parameter("DNNNonMaxSuppression").as_double())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure AI model");
+      return false;
+    }
+    if(!set_register("DNNConfidence", get_parameter("DNNConfidence").as_double())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure AI model");
+      return false;
+    }
+  }
+
+  // Enable or disable model based on outcome of previous check
+  if(!set_register("DNNEnable", enabled)) {
+    RCLCPP_ERROR(get_logger(), "Could not configure DNNEnable");
+    return false;
+  }
+  return true;
+}
+
 bool CameraDriver::load_calibration(uint32_t sid, std::string cname){
   std::string param = cname + "_calibration_file";
   std::string kfile_param;
@@ -1100,6 +1235,54 @@ bool CameraDriver::set_enum_register(std::string regname, std::string value) {
   }
 
   return res.IsOK();
+}
+
+// const char *ftp_url = "ftp://example.com/path/to/your/file"; // Replace with your FTP URL
+// const char *file_path = "/path/to/local/file"; // Replace with the path to the local file
+bool CameraDriver::ftp_upload(const std::string &ftp_url, const std::string &file_path) {
+  CURL *curl;
+  CURLcode res;
+  FILE *hd_src;
+  struct stat file_info{};
+  curl_off_t fsize;
+
+  // Get the file size
+  if(stat(file_path.c_str(), &file_info)) {
+    RCLCPP_ERROR_STREAM(get_logger(), "Could not retrieve file information: " << file_path);
+    return false;
+  }
+  fsize = (curl_off_t)file_info.st_size;
+
+  // Open the file to upload
+  hd_src = fopen(file_path.c_str(), "rb");
+
+  curl_global_init(CURL_GLOBAL_ALL);
+  curl = curl_easy_init();
+  if(curl) {
+    // Set up the FTP upload
+    curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
+    curl_easy_setopt(curl, CURLOPT_URL, ftp_url.c_str());
+    curl_easy_setopt(curl, CURLOPT_READDATA, hd_src);
+    curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, fsize);
+    curl_easy_setopt(curl, CURLOPT_READFUNCTION, curlReadCallback);
+    curl_easy_setopt(curl, CURLOPT_FTPPORT, "-"); // Use "-" to enable active mode, PASV not supported by camera
+
+    // Perform the upload
+    res = curl_easy_perform(curl);
+
+    // Check for errors
+    if(res != CURLE_OK) {
+      RCLCPP_ERROR_STREAM(get_logger(), "curl_easy_perform() failed: " << curl_easy_strerror(res));
+      return false;
+    }
+
+    // Clean up
+    curl_easy_cleanup(curl);
+  }
+  fclose(hd_src);
+
+  curl_global_cleanup();
+  return true;
 }
 
 static void decompose_projection(double *pm, double *tvec, double *rvec){

@@ -39,6 +39,7 @@ find_package(camera_info_manager REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(camera_calibration_parsers REQUIRED)
 find_package(OpenCV 4 REQUIRED)
+find_package(CURL REQUIRED)
 
 add_library(bottlenose_camera_driver SHARED
         src/bottlenose_camera_driver.cpp
@@ -49,8 +50,9 @@ target_include_directories(bottlenose_camera_driver
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
-    $eBUS_INCLUDE_DIRS)
-target_link_libraries(bottlenose_camera_driver ${eBUS_LIBRARIES})
+    $eBUS_INCLUDE_DIRS
+    ${CURL_INCLUDE_DIR})
+target_link_libraries(bottlenose_camera_driver ${eBUS_LIBRARIES} ${CURL_LIBRARIES})
 
 ament_target_dependencies(bottlenose_camera_driver
     "rclcpp"
