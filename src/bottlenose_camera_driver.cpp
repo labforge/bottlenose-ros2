@@ -1127,7 +1127,7 @@ bool CameraDriver::configure_feature_points() {
   bool enabled = false;
   if(get_parameter("feature_points").as_string() == "none") {
     // Disable feature_points
-    RCLCPP_DEBUG(get_logger(), "Disabling feature_points");
+    RCLCPP_DEBUG(get_logger(), "Disabling feature points");
     return set_chunk("FeaturePoints", false);
   } else if(get_parameter("feature_points").as_string() == "gftt") {
     RCLCPP_DEBUG(get_logger(), "Enabling gftt features");
@@ -1178,7 +1178,7 @@ bool CameraDriver::configure_point_cloud() {
   }
   // FIXME: Matching parameters
 
-  return enabled;
+  return true;
 }
 
 bool CameraDriver::configure_ai_model() {
