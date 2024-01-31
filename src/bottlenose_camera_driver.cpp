@@ -984,15 +984,19 @@ void CameraDriver::publish_bboxes(const bboxes_t &bboxes, const uint64_t &timest
 
     // Encode the bounding box
     vision_msgs::msg::BoundingBox2D bbox;
+    vision_msgs::msg::ObjectHypothesisWithPose hyp;
+
+#if ROS_VERSION_MAJOR == 2 && ROS_VERSION_MINOR == 0
+#else // Humble
     bbox.center.position.x = bboxes.box[i].left + width / 2.0;
     bbox.center.position.y = bboxes.box[i].top + height / 2.0;
     bbox.size_x = width;
     bbox.size_y = height;
 
     // Encode the class
-    vision_msgs::msg::ObjectHypothesisWithPose hyp;
     hyp.hypothesis.class_id = bboxes.box[i].label;
     hyp.hypothesis.score = bboxes.box[i].score;
+#endif
 
     vision_msgs::msg::Detection2D det;
     det.bbox = bbox;

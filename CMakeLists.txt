@@ -42,6 +42,11 @@ find_package(camera_calibration_parsers REQUIRED)
 find_package(OpenCV 4 REQUIRED)
 find_package(CURL REQUIRED)
 
+# Special handling for legacy ROS messages (i.e. Foxy)
+add_compile_definitions(ROS_VERSION_MAJOR=${std_msgs_VERSION_MAJOR})
+add_compile_definitions(ROS_VERSION_MINOR=${std_msgs_VERSION_MINOR})
+
+
 add_library(bottlenose_camera_driver SHARED
         src/bottlenose_camera_driver.cpp
         src/bottlenose_chunk_parser.cpp)
