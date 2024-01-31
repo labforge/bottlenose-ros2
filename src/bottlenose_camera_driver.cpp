@@ -987,6 +987,13 @@ void CameraDriver::publish_bboxes(const bboxes_t &bboxes, const uint64_t &timest
     vision_msgs::msg::ObjectHypothesisWithPose hyp;
 
 #if ROS_VERSION_MAJOR == 2 && ROS_VERSION_MINOR == 0
+    bbox.center.x = bboxes.box[i].left + width / 2.0;
+    bbox.center.y = bboxes.box[i].top + height / 2.0;
+    bbox.size_x = width;
+    bbox.size_y = height;
+
+    hyp.score = bboxes.box[i].score;
+    hyp.id = bboxes.box[i].label;
 #else // Humble
     bbox.center.position.x = bboxes.box[i].left + width / 2.0;
     bbox.center.position.y = bboxes.box[i].top + height / 2.0;
