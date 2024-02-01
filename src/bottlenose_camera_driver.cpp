@@ -1094,7 +1094,7 @@ void CameraDriver::publish_pointcloud(const pointcloud_t &pointcloud, const uint
   msg.header.stamp.sec = ts.first;
   msg.header.stamp.nanosec = ts.second;
   m_pointcloud->publish(msg);
-  RCLCPP_WARN(get_logger(), "Decoded point cloud with %u points", pointcloud.count);
+  RCLCPP_DEBUG(get_logger(), "Decoded point cloud with %u points", pointcloud.count);
 }
 
 bool CameraDriver::is_streaming() {
