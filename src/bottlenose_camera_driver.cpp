@@ -362,19 +362,7 @@ bool CameraDriver::update_runtime_parameters() {
 }
 
 bool CameraDriver::is_stereo() {
-  PvGenString *model = dynamic_cast<PvGenString *>( m_device->GetParameters()->Get("DeviceModelName"));
-  if(!model) {
-    RCLCPP_ERROR(get_logger(), "Could not determine device model");
-    return false;
-  }
-  PvString modelName;
-  PvResult res = model->GetValue(modelName);
-  if(res.IsFailure()) {
-    RCLCPP_ERROR(get_logger(), "Could not determine device model");
-    return false;
-  }
-  string val = modelName.GetAscii();
-  return val.find("_ST") != string::npos;
+  return get_num_sensors() == 2;
 }
 
 bool CameraDriver::set_interval() {
@@ -435,6 +423,33 @@ bool CameraDriver::set_format() {
     return false;
   }
   RCLCPP_DEBUG_STREAM(get_logger(), "Configured format to " << format);
+
+  // Apply Offsets
+  for (auto param: {"OffsetX", "OffsetY"}) {
+    PvGenInteger *intval = static_cast<PvGenInteger *>( m_device->GetParameters()->Get(param));
+    int val = get_parameter(param).as_int();
+    PvResult res = intval->SetValue(val);
+    if (res.IsFailure()) {
+      RCLCPP_WARN_STREAM(get_logger(), "Could not set parameter " << param << " to " << val << " cause "
+                                                                  << res.GetDescription().GetAscii());
+      return false;
+    }
+  }
+  if(is_stereo()) {
+    for (auto param: {"OffsetX1", "OffsetY1"}) {
+      PvGenInteger *intval = static_cast<PvGenInteger *>( m_device->GetParameters()->Get(param));
+      int val = get_parameter(param).as_int();
+      PvResult res = intval->SetValue(val);
+      if (res.IsFailure()) {
+        RCLCPP_WARN_STREAM(get_logger(), "Could not set parameter " << param << " to " << val << " cause "
+                                                                    << res.GetDescription().GetAscii());
+        return false;
+      }
+    }
+  }
+
+
+  RCLCPP_DEBUG_STREAM(get_logger(), "Offsets applied " << format);
 
   return true;
 }
@@ -516,7 +531,7 @@ bool CameraDriver::set_ccm_custom() {
       return false;
     }
     // Wait for parameter pass-through
-    usleep(100000);
+    WAIT_PROPAGATE();
     // Check the return code
     PvGenString *strStatus = dynamic_cast<PvGenString*>( m_device->GetParameters()->Get("CCM0Status"));
     if(!strStatus) {
@@ -738,7 +753,6 @@ void CameraDriver::publish_features(const std::vector<keypoints_t> &features, co
       marker.points.push_back(pt);
       marker.outline_colors.push_back(outline_color);
     }
-    // FIXME: Check with martin if this is the right way to do it
     if(feature_list.fid == 0 || feature_list.fid == 2) {
       m_keypoints->publish(marker);
       RCLCPP_DEBUG(get_logger(), "Published %zu keypoints stream %i fid %i", marker.points.size(), 0, feature_list.fid);
@@ -1059,15 +1073,15 @@ void CameraDriver::publish_pointcloud(const pointcloud_t &pointcloud, const uint
   for(size_t i = 0; i < pointcloud.count; i++) {
     // Copy data into cloud_msg.data
     std::memcpy(&msg.data[i * msg.point_step + x_field.offset], &pointcloud.points[i].x, sizeof(float));
-    std::memcpy(&msg.data[i * msg.point_step + y_field.offset], &pointcloud.points[i].x, sizeof(float));
-    std::memcpy(&msg.data[i * msg.point_step + z_field.offset], &pointcloud.points[i].x, sizeof(float));
+    std::memcpy(&msg.data[i * msg.point_step + y_field.offset], &pointcloud.points[i].y, sizeof(float));
+    std::memcpy(&msg.data[i * msg.point_step + z_field.offset], &pointcloud.points[i].z, sizeof(float));
 //    std::memcpy(&msg.data[i * msg.point_step + intensity_field.offset], &intensity, sizeof(float));
   }
   msg.header.frame_id = this->get_parameter("frame_id").as_string();
   msg.header.stamp.sec = ts.first;
   msg.header.stamp.nanosec = ts.second;
   m_pointcloud->publish(msg);
-  RCLCPP_WARN(get_logger(), "Decoded point cloud with %u points", pointcloud.count);
+  RCLCPP_DEBUG(get_logger(), "Decoded point cloud with %u points", pointcloud.count);
 }
 
 bool CameraDriver::is_streaming() {
@@ -1135,7 +1149,34 @@ bool CameraDriver::configure_feature_points() {
       RCLCPP_ERROR(get_logger(), "Could not configure feature_points");
       return false;
     }
-    // FIXME: GFTT specific parameters
+    string detector_type = get_parameter("gftt_detector").as_string();
+    if(detector_type == "harris") {
+      if(!set_enum_register("KPDetector", "Harris")) {
+        RCLCPP_ERROR(get_logger(), "Could not configure gftt_detector");
+        return false;
+      }
+    } else if(detector_type == "eigen") {
+      if(!set_enum_register("KPDetector", "Min-Eigen")) {
+        RCLCPP_ERROR(get_logger(), "Could not configure gftt_detector");
+        return false;
+      }
+    } else {
+      RCLCPP_ERROR_STREAM(get_logger(), "Invalid setting for \'gftt_detector\' = "
+        << detector_type << "valid choices are {'harris', 'eigen'}");
+      return false;
+    }
+    if(!set_register("KPQualityLevel", get_parameter("features_quality").as_int())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure features_quality");
+      return false;
+    }
+    if(!set_register("KPMinimunDistance", get_parameter("features_min_distance").as_int())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure features_min_distance");
+      return false;
+    }
+    if(!set_register("KPHarrisParamK", get_parameter("features_harrisk").as_double())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure features_harrisk");
+      return false;
+    }
     enabled = true;
   } else if(get_parameter("feature_points").as_string() == "fast9") {
     RCLCPP_DEBUG(get_logger(), "Enabling fast9 features");
@@ -1176,7 +1217,32 @@ bool CameraDriver::configure_point_cloud() {
     RCLCPP_ERROR(get_logger(), "Could not configure point cloud");
     return false;
   }
-  // FIXME: Matching parameters
+  int akazeValue = get_parameter("AKAZELength").as_int();
+  string value = std::to_string(akazeValue) + "-Bits";
+  if(!set_enum_register("AKAZELength", value)) {
+    RCLCPP_ERROR(get_logger(), "Could not configure AKAZELength");
+    return false;
+  }
+  akazeValue = get_parameter("AKAZEWindow").as_int();
+  value = std::to_string(akazeValue) + "x" + std::to_string(akazeValue) + "-Window";
+  if(!set_enum_register("AKAZEWindow", value)) {
+    RCLCPP_ERROR(get_logger(), "Could not configure AKAZEWindow");
+    return false;
+  }
+
+  for(auto value : {"HAMATXOffset",
+                    "HAMATYOffset",
+                    "HAMATRect1X",
+                    "HAMATRect1Y",
+                    "HAMATRect2X",
+                    "HAMATRect2Y",
+                    "HAMATMinThreshold",
+                    "HAMATRatioThreshold"}) {
+    if(!set_register(value, get_parameter(value).as_int())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure %s", value);
+      return false;
+    }
+  }
 
   return true;
 }
@@ -1232,7 +1298,7 @@ bool CameraDriver::configure_ai_model() {
       if (modelStatusStr.find("FTP running") != std::string::npos) {
         break;
       }
-      usleep(100000);
+      WAIT_PROPAGATE();
     }
     if(trials == 0) {
       RCLCPP_ERROR(get_logger(), "Could not file transfer");
@@ -1402,10 +1468,26 @@ bool CameraDriver::set_enum_register(std::string regname, std::string value) {
 
   if(lGenType == PvGenTypeEnum){
     PvString lValue = value.c_str();
-    res = static_cast<PvGenEnum *>( lGenParameter )->SetValue( lValue );
+    PvGenEnum *lGenEnum = dynamic_cast<PvGenEnum *>( lGenParameter );
+    res = lGenEnum->SetValue(lValue);
     if(!res.IsOK()) {
       RCLCPP_ERROR_STREAM(get_logger(), "Could not set enum register: " << regname << " to " << value
         << " cause: " << res.GetDescription().GetAscii());
+      int64_t count;
+      res = lGenEnum->GetEntriesCount(count);
+      if(res) {
+        for(int64_t i = 0; i < count; i++) {
+          const PvGenEnumEntry *entry;
+          res = lGenEnum->GetEntryByIndex(i, &entry);
+          if(res) {
+            PvString name;
+            res = entry->GetName(name);
+            if(res) {
+              RCLCPP_ERROR_STREAM(get_logger(), "Valid entry [" << i << "] = " << name.GetAscii());
+            }
+          }
+        }
+      }
       return false;
     }
   } else {
@@ -1490,7 +1572,7 @@ static bool make_calibration_registers(uint32_t sid, sensor_msgs::msg::CameraInf
   if(cam.distortion_model != "plumb_bob"){    
     return false;
   }
-
+  
   decompose_projection(cam.p.data(), tvec, rvec);
   std::string id = std::to_string(sid);
 
@@ -1518,6 +1600,19 @@ static bool make_calibration_registers(uint32_t sid, sensor_msgs::msg::CameraInf
   return true;
 }
 
+static bool is_calib_valid(sensor_msgs::msg::CameraInfo cam){
+  if((cam.width == 0) || (cam.height == 0)){
+    return false;
+  }
+
+  if(((int32_t)cam.k[0]) == 0) return false;
+  if(((int32_t)cam.k[2]) == 0) return false; 
+  if(((int32_t)cam.k[4]) == 0) return false;  
+  if(((int32_t)cam.k[5]) == 0) return false;
+
+  return true;
+}
+
 bool CameraDriver::set_calibration(){
   uint32_t num_sensors = get_num_sensors();
   m_calibrated = false;
@@ -1533,6 +1628,10 @@ bool CameraDriver::set_calibration(){
   if(m_calibrated){
     m_calibrated = false;
     for(uint32_t i = 0; i < num_sensors; ++i){
+      if(!is_calib_valid(m_cinfo_manager[i]->getCameraInfo())){
+        RCLCPP_ERROR(get_logger(), "Invalid calibration!");
+        return m_calibrated;
+      }
       if(!make_calibration_registers(i, m_cinfo_manager[i]->getCameraInfo(), kregisters)){
         RCLCPP_ERROR(get_logger(), "Only Plumb_bob calibration model supported!");
         return m_calibrated;
@@ -1546,14 +1645,31 @@ bool CameraDriver::set_calibration(){
       }      
     }
 
-    if(set_register("saveCalibrationData", true)){            
+    if(set_register("saveCalibrationData", true)){
       m_calibrated = set_register("Undistortion", true);
-      if(num_sensors == 2) m_calibrated &= set_register("Rectification", true);
       if(!m_calibrated){
-        RCLCPP_ERROR(get_logger(), "Failed to trigger Undistortion/Rectification mode on camera.");
+        RCLCPP_ERROR(get_logger(), "Failed to trigger Undistortion mode on camera.");
+        return false;
+      }
+      RCLCPP_DEBUG(get_logger(), "Calibration committed");
+      if(num_sensors == 2) {
+        if(!get_parameter("sparse_point_cloud").as_bool()) { // Special handling, if we have 3d points decoded, we cannot rectify the images
+          if(!set_register("Rectification", true)) {
+            RCLCPP_ERROR(get_logger(), "Failed to trigger Rectification mode on camera.");
+            return m_calibrated;
+          }
+          RCLCPP_DEBUG(get_logger(), "Rectification enabled");
+        } else {
+          if(!set_register("Rectification", false)) {
+            RCLCPP_ERROR(get_logger(), "Failed to disable Rectification mode on camera.");
+            return m_calibrated;
+          }
+          RCLCPP_DEBUG(get_logger(), "Rectification disabled");
+        }
       }
     } else{
       RCLCPP_ERROR(get_logger(), "Failed to trigger calibration mode on camera.");
+      return false;
     }
   }
   

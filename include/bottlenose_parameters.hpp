@@ -45,6 +45,10 @@ const parameter_t bottlenose_parameters[] = {
   {"dgainGB", rclcpp::ParameterValue(1024)},
   {"dgainGR", rclcpp::ParameterValue(1024)},
   {"dgainRed", rclcpp::ParameterValue(1024)},
+  {"OffsetX", rclcpp::ParameterValue(108)},
+  {"OffsetY", rclcpp::ParameterValue(440)},
+  {"OffsetX1", rclcpp::ParameterValue(108)},
+  {"OffsetY1", rclcpp::ParameterValue(440)},
   /* ISP parameters */
   {"wbBlue", rclcpp::ParameterValue(1.0)},
   {"wbGreen", rclcpp::ParameterValue(1.0)},
@@ -85,6 +89,23 @@ const parameter_t bottlenose_parameters[] = {
   {"features_max",  rclcpp::ParameterValue(1000)},
   {"features_threshold",  rclcpp::ParameterValue(100)},
   {"features_nms",  rclcpp::ParameterValue(false)},
+  {"gftt_detector", rclcpp::ParameterValue("harris")},
+  {"features_quality", rclcpp::ParameterValue(500)},
+  {"features_min_distance", rclcpp::ParameterValue(15)},
+  {"features_harrisk", rclcpp::ParameterValue(0.0)},
+
+  /* Pointcloud parameters */
+  {"AKAZELength", rclcpp::ParameterValue(120)},
+  {"AKAZEWindow", rclcpp::ParameterValue(20)},
+  {"HAMATXOffset", rclcpp::ParameterValue(0)},
+  {"HAMATYOffset", rclcpp::ParameterValue(0)},
+  {"HAMATRect1X", rclcpp::ParameterValue(64)},
+  {"HAMATRect1Y", rclcpp::ParameterValue(64)},
+  {"HAMATRect2X", rclcpp::ParameterValue(128)},
+  {"HAMATRect2Y", rclcpp::ParameterValue(128)},
+  {"HAMATMinThreshold", rclcpp::ParameterValue(500)},
+  {"HAMATRatioThreshold",rclcpp::ParameterValue(1023)},
+
   /* DNN parameters */
 //  {"DNNTopK", rclcpp::ParameterValue(1)}, // Not needed for Bounding boxes
   {"DNNMaxDetections", rclcpp::ParameterValue(100)},
