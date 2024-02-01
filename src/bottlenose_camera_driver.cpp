@@ -1589,18 +1589,32 @@ bool CameraDriver::set_calibration(){
       }      
     }
 
-    if(set_register("saveCalibrationData", true)){            
+    if(set_register("saveCalibrationData", true)){
       m_calibrated = set_register("Undistortion", true);
-      if(num_sensors == 2) m_calibrated &= set_register("Rectification", true);
       if(!m_calibrated){
-        RCLCPP_ERROR(get_logger(), "Failed to trigger Undistortion/Rectification mode on camera.");
+        RCLCPP_ERROR(get_logger(), "Failed to trigger Undistortion mode on camera.");
+        return false;
+      }
+      if(num_sensors == 2) { // Special handling, if we have 3d points decoded, we cannot rectify the images
+        if(!get_parameter("sparse_point_cloud").as_bool()) {
+          if(!set_register("Rectification", true)) {
+            RCLCPP_ERROR(get_logger(), "Failed to trigger Rectification mode on camera.");
+            return false;
+          }
+        } else {
+          if(!set_register("Rectification", false)) {
+            RCLCPP_ERROR(get_logger(), "Failed to disable Rectification mode on camera.");
+            return false;
+          }
+        }
       }
     } else{
       RCLCPP_ERROR(get_logger(), "Failed to trigger calibration mode on camera.");
+      return false;
     }
   }
   
-  return m_calibrated;
+  return true;
 }
 
 bool CameraDriver::isCalibrated(){
