@@ -164,9 +164,19 @@ internally to describe feature points. The point cloud hence is very sensitive t
 from the previous example. You have to set the desired feature point parameters, enable sparse point matching, and
 set the parameters of the AKAZE matcher (shown above as ***Sparse Point Cloud Controls***).
 
-
-
-
+```bash
+ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args \
+    -p mac_address:="<MAC>" \ 
+    -p stereo:=true \
+    -p feature_points:=fast9 \
+    -p features_threshold:=10
+    -p sparse_point_cloud:=true \
+    -p AKAZELength:=486 \
+    -p AKAZEWindow:=20
+```
+ * Enable stereo processing
+ * Enable sparse point cloud output
+ * Set the AKAZE descriptor length to ```486``` bits and the window size to ```20x20```
 
 ### AI example
 ```bash
