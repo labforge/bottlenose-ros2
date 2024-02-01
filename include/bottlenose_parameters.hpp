@@ -45,6 +45,10 @@ const parameter_t bottlenose_parameters[] = {
   {"dgainGB", rclcpp::ParameterValue(1024)},
   {"dgainGR", rclcpp::ParameterValue(1024)},
   {"dgainRed", rclcpp::ParameterValue(1024)},
+  {"OffsetX", rclcpp::ParameterValue(108)},
+  {"OffsetY", rclcpp::ParameterValue(440)},
+  {"OffsetX1", rclcpp::ParameterValue(108)},
+  {"OffsetY1", rclcpp::ParameterValue(440)},
   /* ISP parameters */
   {"wbBlue", rclcpp::ParameterValue(1.0)},
   {"wbGreen", rclcpp::ParameterValue(1.0)},

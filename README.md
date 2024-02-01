@@ -73,6 +73,10 @@ ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p ma
 | ```dgainGB```                            | Digital gain for green-blue pixels in Bayer array                                | ```1024```                       | :white_check_mark:  |
 | ```dgainGR```                            | Digital gain for green-red pixels in Bayer array                                 | ```1024```                       | :white_check_mark:  |
 | ```dGainRed```                           | Digital gain for red pixels in Bayer array                                       | ```1024```                       | :white_check_mark:  |
+| ```OffsetX```                            | Readout offset from of image sensor                                              | ```108```                        |                     |
+| ```OffsetY```                            | Readout offset from of image sensor                                              | ```440```                        |                     |
+| ```OffsetX1```                           | Readout offset from of image sensor 1 (Stereo only)                              | ```108```                        |                     |
+| ```OffsetY1```                           | Readout offset from of image sensor 1 (Stereo only)                              | ```440```                        |                     |
 | **Image Processing Controls**            |                                                                                  |                                  |                     |
 | ```gamma```                              | Gamma correction of the image                                                    | ```2.2```                        | :white_check_mark:  |
 | ```wbBlue```                             | White balance for blue component                                                 | ```1.0```                        | :white_check_mark:  |

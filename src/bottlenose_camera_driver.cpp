@@ -436,6 +436,33 @@ bool CameraDriver::set_format() {
   }
   RCLCPP_DEBUG_STREAM(get_logger(), "Configured format to " << format);
 
+  // Apply Offsets
+  for (auto param: {"OffsetX", "OffsetY"}) {
+    PvGenInteger *intval = static_cast<PvGenInteger *>( m_device->GetParameters()->Get(param));
+    int val = get_parameter(param).as_int();
+    PvResult res = intval->SetValue(val);
+    if (res.IsFailure()) {
+      RCLCPP_WARN_STREAM(get_logger(), "Could not set parameter " << param << " to " << val << " cause "
+                                                                  << res.GetDescription().GetAscii());
+      return false;
+    }
+  }
+  if(is_stereo()) {
+    for (auto param: {"OffsetX1", "OffsetY1"}) {
+      PvGenInteger *intval = static_cast<PvGenInteger *>( m_device->GetParameters()->Get(param));
+      int val = get_parameter(param).as_int();
+      PvResult res = intval->SetValue(val);
+      if (res.IsFailure()) {
+        RCLCPP_WARN_STREAM(get_logger(), "Could not set parameter " << param << " to " << val << " cause "
+                                                                    << res.GetDescription().GetAscii());
+        return false;
+      }
+    }
+  }
+
+
+  RCLCPP_DEBUG_STREAM(get_logger(), "Offsets applied " << format);
+
   return true;
 }
 
@@ -516,7 +543,7 @@ bool CameraDriver::set_ccm_custom() {
       return false;
     }
     // Wait for parameter pass-through
-    usleep(100000);
+    WAIT_PROPAGATE();
     // Check the return code
     PvGenString *strStatus = dynamic_cast<PvGenString*>( m_device->GetParameters()->Get("CCM0Status"));
     if(!strStatus) {
@@ -1232,7 +1259,7 @@ bool CameraDriver::configure_ai_model() {
       if (modelStatusStr.find("FTP running") != std::string::npos) {
         break;
       }
-      usleep(100000);
+      WAIT_PROPAGATE();
     }
     if(trials == 0) {
       RCLCPP_ERROR(get_logger(), "Could not file transfer");
