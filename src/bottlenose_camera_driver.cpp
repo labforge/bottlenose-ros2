@@ -1574,6 +1574,7 @@ bool CameraDriver::set_calibration(){
     m_calibrated = false;
     for(uint32_t i = 0; i < num_sensors; ++i){
       if(!is_calib_valid(m_cinfo_manager[i]->getCameraInfo())){
+        RCLCPP_ERROR(get_logger(), "Invalid calibration!");
         return m_calibrated;
       }
       if(!make_calibration_registers(i, m_cinfo_manager[i]->getCameraInfo(), kregisters)){
@@ -1595,17 +1596,20 @@ bool CameraDriver::set_calibration(){
         RCLCPP_ERROR(get_logger(), "Failed to trigger Undistortion mode on camera.");
         return false;
       }
-      if(num_sensors == 2) { // Special handling, if we have 3d points decoded, we cannot rectify the images
-        if(!get_parameter("sparse_point_cloud").as_bool()) {
+      RCLCPP_DEBUG(get_logger(), "Calibration committed");
+      if(num_sensors == 2) {
+        if(!get_parameter("sparse_point_cloud").as_bool()) { // Special handling, if we have 3d points decoded, we cannot rectify the images
           if(!set_register("Rectification", true)) {
             RCLCPP_ERROR(get_logger(), "Failed to trigger Rectification mode on camera.");
-            return false;
+            return m_calibrated;
           }
+          RCLCPP_DEBUG(get_logger(), "Rectification enabled");
         } else {
           if(!set_register("Rectification", false)) {
             RCLCPP_ERROR(get_logger(), "Failed to disable Rectification mode on camera.");
-            return false;
+            return m_calibrated;
           }
+          RCLCPP_DEBUG(get_logger(), "Rectification disabled");
         }
       }
     } else{
@@ -1614,7 +1618,7 @@ bool CameraDriver::set_calibration(){
     }
   }
   
-  return true;
+  return m_calibrated;
 }
 
 bool CameraDriver::isCalibrated(){
