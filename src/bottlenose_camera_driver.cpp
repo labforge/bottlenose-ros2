@@ -1229,7 +1229,32 @@ bool CameraDriver::configure_point_cloud() {
     RCLCPP_ERROR(get_logger(), "Could not configure point cloud");
     return false;
   }
-  // FIXME: Matching parameters
+  int akazeValue = get_parameter("AKAZELength").as_int();
+  string value = std::to_string(akazeValue) + "-Bits";
+  if(!set_enum_register("AKAZELength", value)) {
+    RCLCPP_ERROR(get_logger(), "Could not configure AKAZELength");
+    return false;
+  }
+  akazeValue = get_parameter("AKAZEWindow").as_int();
+  value = std::to_string(akazeValue) + "x" + std::to_string(akazeValue) + "-Window";
+  if(!set_enum_register("AKAZEWindow", value)) {
+    RCLCPP_ERROR(get_logger(), "Could not configure AKAZEWindow");
+    return false;
+  }
+
+  for(auto value : {"HAMATXOffset",
+                    "HAMATYOffset",
+                    "HAMATRect1X",
+                    "HAMATRect1Y",
+                    "HAMATRect2X",
+                    "HAMATRect2Y",
+                    "HAMATMinThreshold",
+                    "HAMATRatioThreshold"}) {
+    if(!set_register(value, get_parameter(value).as_int())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure %s", value);
+      return false;
+    }
+  }
 
   return true;
 }
@@ -1455,10 +1480,26 @@ bool CameraDriver::set_enum_register(std::string regname, std::string value) {
 
   if(lGenType == PvGenTypeEnum){
     PvString lValue = value.c_str();
-    res = static_cast<PvGenEnum *>( lGenParameter )->SetValue( lValue );
+    PvGenEnum *lGenEnum = dynamic_cast<PvGenEnum *>( lGenParameter );
+    res = lGenEnum->SetValue(lValue);
     if(!res.IsOK()) {
       RCLCPP_ERROR_STREAM(get_logger(), "Could not set enum register: " << regname << " to " << value
         << " cause: " << res.GetDescription().GetAscii());
+      int64_t count;
+      res = lGenEnum->GetEntriesCount(count);
+      if(res) {
+        for(int64_t i = 0; i < count; i++) {
+          const PvGenEnumEntry *entry;
+          res = lGenEnum->GetEntryByIndex(i, &entry);
+          if(res) {
+            PvString name;
+            res = entry->GetName(name);
+            if(res) {
+              RCLCPP_ERROR_STREAM(get_logger(), "Valid entry [" << i << "] = " << name.GetAscii());
+            }
+          }
+        }
+      }
       return false;
     }
   } else {

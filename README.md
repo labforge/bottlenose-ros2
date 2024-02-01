@@ -99,6 +99,16 @@ ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p ma
 | ```DNNNonMaxSuppression```               | Set the non-maximum suppression value for bounding boxes.                              | ```0.45```                       |                     |
 | ```DNNConfidence```                      | Set confidence threshold of the detector.                                              | ```0.2```                        |                     |
 | **Sparse Point Cloud Controls**          |                                                                                        |                                  |                     |
+| ```AKAZELength```                        | Length of AKAZE descriptor in bits (```120, 128, 256, 486```)                          | ```120```                        |                     |
+| ```AKAZEWindow```                        | Window size of AKAZE descriptor ```XX``` for ```XX x XX``` window (20, 30, 40, 60, 80) | ```20```                         |                     |
+| ```HAMATXOffset```                       | Offset in number of pixels from source x to reference center x                         | ```0```                          |                     |
+| ```HAMATYOffset```                       | Offset in number of pixels from source x to reference center y                         | ```0```                          |                     |
+| ```HAMATRect1X```                        | First rectangle range in x direction in terms of number of pixels                      | ```64```                         |                     |
+| ```HAMATRect1Y```                        | First rectangle range in y direction in terms of number of pixels                      | ```64```                         |                     |
+| ```HAMATRect2X```                        | Second rectangle range in x direction in terms of number of pixels                     | ```128```                        |                     |
+| ```HAMATRect2Y```                        | Second rectangle range in y direction in terms of number of pixels                     | ```128```                        |                     |
+| ```HAMATMinThreshold```                  | Minimum hamming distance threshold.                                                    | ```500```                        |                     |
+| ```HAMATRatioThreshold```                | Minimum to next minimum hamming distance ratio threshold.                              | ```1023```                       |                     |
 | **GigE Vision Stream Parameters**        |                                                                                        |                                  |                     |
 | ```AnswerTimeout```                      | Time the GigE Vision Device can take for command response.                             | ```1000```                       |                     |
 | ```CommandRetryCount```                  | Command attempts before it is considered as failed                                     | ```3```                          |                     |
@@ -146,6 +156,17 @@ ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args \
 ```
  * Enable stereo processing and set the feature point type to ```fast9``` with a confidence threshold of ```10```
  * You can use [Foxglove studio](https://foxglove.dev/) to visualize the makers in the image
+
+### Point Cloud example (Stereo Only)
+
+Point cloud detection relies on matching feature points across the two image sensors. Bottlenose uses AKAZE descriptors
+internally to describe feature points. The point cloud hence is very sensitive to the feature point detection parameters 
+from the previous example. You have to set the desired feature point parameters, enable sparse point matching, and
+set the parameters of the AKAZE matcher (shown above as ***Sparse Point Cloud Controls***).
+
+
+
+
 
 ### AI example
 ```bash
