@@ -1162,7 +1162,34 @@ bool CameraDriver::configure_feature_points() {
       RCLCPP_ERROR(get_logger(), "Could not configure feature_points");
       return false;
     }
-    // FIXME: GFTT specific parameters
+    string detector_type = get_parameter("gftt_detector").as_string();
+    if(detector_type == "harris") {
+      if(!set_enum_register("KPDetector", "Harris")) {
+        RCLCPP_ERROR(get_logger(), "Could not configure gftt_detector");
+        return false;
+      }
+    } else if(detector_type == "eigen") {
+      if(!set_enum_register("KPDetector", "Min-Eigen")) {
+        RCLCPP_ERROR(get_logger(), "Could not configure gftt_detector");
+        return false;
+      }
+    } else {
+      RCLCPP_ERROR_STREAM(get_logger(), "Invalid setting for \'gftt_detector\' = "
+        << detector_type << "valid choices are {'harris', 'eigen'}");
+      return false;
+    }
+    if(!set_register("KPQualityLevel", get_parameter("features_quality").as_int())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure features_quality");
+      return false;
+    }
+    if(!set_register("KPMinimunDistance", get_parameter("features_min_distance").as_int())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure features_min_distance");
+      return false;
+    }
+    if(!set_register("KPHarrisParamK", get_parameter("features_harrisk").as_double())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure features_harrisk");
+      return false;
+    }
     enabled = true;
   } else if(get_parameter("feature_points").as_string() == "fast9") {
     RCLCPP_DEBUG(get_logger(), "Enabling fast9 features");

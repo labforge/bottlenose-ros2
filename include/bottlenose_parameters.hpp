@@ -89,6 +89,11 @@ const parameter_t bottlenose_parameters[] = {
   {"features_max",  rclcpp::ParameterValue(1000)},
   {"features_threshold",  rclcpp::ParameterValue(100)},
   {"features_nms",  rclcpp::ParameterValue(false)},
+  {"gftt_detector", rclcpp::ParameterValue("harris")},
+  {"features_quality", rclcpp::ParameterValue(500)},
+  {"features_min_distance", rclcpp::ParameterValue(15)},
+  {"features_harrisk", rclcpp::ParameterValue(0.0)},
+
   /* DNN parameters */
 //  {"DNNTopK", rclcpp::ParameterValue(1)}, // Not needed for Bounding boxes
   {"DNNMaxDetections", rclcpp::ParameterValue(100)},
