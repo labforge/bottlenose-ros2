@@ -362,19 +362,7 @@ bool CameraDriver::update_runtime_parameters() {
 }
 
 bool CameraDriver::is_stereo() {
-  PvGenString *model = dynamic_cast<PvGenString *>( m_device->GetParameters()->Get("DeviceModelName"));
-  if(!model) {
-    RCLCPP_ERROR(get_logger(), "Could not determine device model");
-    return false;
-  }
-  PvString modelName;
-  PvResult res = model->GetValue(modelName);
-  if(res.IsFailure()) {
-    RCLCPP_ERROR(get_logger(), "Could not determine device model");
-    return false;
-  }
-  string val = modelName.GetAscii();
-  return val.find("_ST") != string::npos;
+  return get_num_sensors() == 2;
 }
 
 bool CameraDriver::set_interval() {
