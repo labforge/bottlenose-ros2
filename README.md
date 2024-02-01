@@ -1,10 +1,3 @@
-# FIXME: Martin
- * Unity calibration file for Bottlenose Stereo, Mono
-
-# FIXME: Thomas
- * Foxy support
- * Parameters for gftt, and matching
-
 # ROS2 Camera Driver for Bottlenose Cameras
 
 [![ContinousIntegration](https://github.com/labforge/bottlenose-ros2/actions/workflows/ci.yml/badge.svg)](https://github.com/labforge/bottlenose-ros2/actions/workflows/ci.yml)

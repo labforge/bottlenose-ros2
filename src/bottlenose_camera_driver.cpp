@@ -765,7 +765,6 @@ void CameraDriver::publish_features(const std::vector<keypoints_t> &features, co
       marker.points.push_back(pt);
       marker.outline_colors.push_back(outline_color);
     }
-    // FIXME: Check with martin if this is the right way to do it
     if(feature_list.fid == 0 || feature_list.fid == 2) {
       m_keypoints->publish(marker);
       RCLCPP_DEBUG(get_logger(), "Published %zu keypoints stream %i fid %i", marker.points.size(), 0, feature_list.fid);
