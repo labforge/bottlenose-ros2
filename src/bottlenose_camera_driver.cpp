@@ -1490,7 +1490,7 @@ static bool make_calibration_registers(uint32_t sid, sensor_msgs::msg::CameraInf
   if(cam.distortion_model != "plumb_bob"){    
     return false;
   }
-
+  
   decompose_projection(cam.p.data(), tvec, rvec);
   std::string id = std::to_string(sid);
 
@@ -1518,6 +1518,19 @@ static bool make_calibration_registers(uint32_t sid, sensor_msgs::msg::CameraInf
   return true;
 }
 
+static bool is_calib_valid(sensor_msgs::msg::CameraInfo cam){
+  if((cam.width == 0) || (cam.height == 0)){
+    return false;
+  }
+
+  if(((int32_t)cam.k[0]) == 0) return false;
+  if(((int32_t)cam.k[2]) == 0) return false; 
+  if(((int32_t)cam.k[4]) == 0) return false;  
+  if(((int32_t)cam.k[5]) == 0) return false;
+
+  return true;
+}
+
 bool CameraDriver::set_calibration(){
   uint32_t num_sensors = get_num_sensors();
   m_calibrated = false;
@@ -1533,6 +1546,9 @@ bool CameraDriver::set_calibration(){
   if(m_calibrated){
     m_calibrated = false;
     for(uint32_t i = 0; i < num_sensors; ++i){
+      if(!is_calib_valid(m_cinfo_manager[i]->getCameraInfo())){
+        return m_calibrated;
+      }
       if(!make_calibration_registers(i, m_cinfo_manager[i]->getCameraInfo(), kregisters)){
         RCLCPP_ERROR(get_logger(), "Only Plumb_bob calibration model supported!");
         return m_calibrated;
