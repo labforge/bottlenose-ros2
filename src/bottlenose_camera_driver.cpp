@@ -1059,8 +1059,8 @@ void CameraDriver::publish_pointcloud(const pointcloud_t &pointcloud, const uint
   for(size_t i = 0; i < pointcloud.count; i++) {
     // Copy data into cloud_msg.data
     std::memcpy(&msg.data[i * msg.point_step + x_field.offset], &pointcloud.points[i].x, sizeof(float));
-    std::memcpy(&msg.data[i * msg.point_step + y_field.offset], &pointcloud.points[i].x, sizeof(float));
-    std::memcpy(&msg.data[i * msg.point_step + z_field.offset], &pointcloud.points[i].x, sizeof(float));
+    std::memcpy(&msg.data[i * msg.point_step + y_field.offset], &pointcloud.points[i].y, sizeof(float));
+    std::memcpy(&msg.data[i * msg.point_step + z_field.offset], &pointcloud.points[i].z, sizeof(float));
 //    std::memcpy(&msg.data[i * msg.point_step + intensity_field.offset], &intensity, sizeof(float));
   }
   msg.header.frame_id = this->get_parameter("frame_id").as_string();
