@@ -148,11 +148,10 @@ bottlenose_camera_driver
 
 ### Camera Calibration
 
-The camera calibration can be done using the [camera_calibration](https://index.ros.org/p/camera_calibration/) package.
-Bottlenose can rectify and undistort the images on sensor using these calibration files. Please see 
-[our documentation](https://docs.labforge.ca/docs/3d-modules#calibration-data-acquisition) for more information on how to calibrate
-Bottlenose. Depending on your setup and lens configuration, you may need to calibrate the camera and update the 
-following files that we provide as samples:
+Bottlenose can rectify and undistort the images on sensor using calibration files. Please see 
+[our documentation](https://docs.labforge.ca/docs/3d-modules#calibration-data-acquisition) for more information on 
+how to calibrate Bottlenose. Depending on your setup and lens configuration, you may need to calibrate the camera and 
+update the following files that we provide as samples:
  * [Configuration for Bottlenose Mono](config/camera.yaml)
  * [Left sensor (0) for Bottlenose Stereo](config/left_camera.yaml)
  * [Right sensor (1) for Bottlenose Stereo](config/right_camera.yaml)
@@ -162,11 +161,11 @@ where the sensors are not perfectly aligned. The following parameters can be use
  * ```OffsetX``` and ```OffsetY``` for the left sensor (0)
  * ```OffsetX1``` and ```OffsetY1``` for the right sensor (1) (Stereo only)
 
-If you used non-default offsets during your calibration file you have to set these parameters to the same
+If you used non-default offsets during your calibration process you have to set these parameters to the same
 values as during your calibration.
 
-If you wish to not use the calibration feature of Bottlenose, you can erase the calibration files from your workspace,
-or set the parameters ```image_width``` or ```image_height``` to ```0``` in the configration files.
+If you do not wish to undistort or rectify the images, you can set the parameters ```image_width``` or ```image_height``` 
+to ```0``` in the configration files.
 
 **Note: For using the pointcloud feature or dense depth you have to have a valid calibration file that matches your setup.** 
 
