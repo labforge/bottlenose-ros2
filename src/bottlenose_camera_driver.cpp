@@ -1217,32 +1217,35 @@ bool CameraDriver::configure_point_cloud() {
     RCLCPP_ERROR(get_logger(), "Could not configure point cloud");
     return false;
   }
-  int akazeValue = get_parameter("AKAZELength").as_int();
-  string value = std::to_string(akazeValue) + "-Bits";
-  if(!set_enum_register("AKAZELength", value)) {
-    RCLCPP_ERROR(get_logger(), "Could not configure AKAZELength");
-    return false;
-  }
-  akazeValue = get_parameter("AKAZEWindow").as_int();
-  value = std::to_string(akazeValue) + "x" + std::to_string(akazeValue) + "-Window";
-  if(!set_enum_register("AKAZEWindow", value)) {
-    RCLCPP_ERROR(get_logger(), "Could not configure AKAZEWindow");
-    return false;
-  }
-
-  for(auto value : {"HAMATXOffset",
-                    "HAMATYOffset",
-                    "HAMATRect1X",
-                    "HAMATRect1Y",
-                    "HAMATRect2X",
-                    "HAMATRect2Y",
-                    "HAMATMinThreshold",
-                    "HAMATRatioThreshold"}) {
-    if(!set_register(value, get_parameter(value).as_int())) {
-      RCLCPP_ERROR(get_logger(), "Could not configure %s", value);
+  if(enabled) {
+    int akazeValue = get_parameter("AKAZELength").as_int();
+    string value = std::to_string(akazeValue) + "-Bits";
+    if(!set_enum_register("AKAZELength", value)) {
+      RCLCPP_ERROR(get_logger(), "Could not configure AKAZELength");
       return false;
     }
+    akazeValue = get_parameter("AKAZEWindow").as_int();
+    value = std::to_string(akazeValue) + "x" + std::to_string(akazeValue) + "-Window";
+    if(!set_enum_register("AKAZEWindow", value)) {
+      RCLCPP_ERROR(get_logger(), "Could not configure AKAZEWindow");
+      return false;
+    }
+
+    for(auto value : {"HAMATXOffset",
+                        "HAMATYOffset",
+                        "HAMATRect1X",
+                        "HAMATRect1Y",
+                        "HAMATRect2X",
+                        "HAMATRect2Y",
+                        "HAMATMinThreshold",
+                        "HAMATRatioThreshold"}) {
+      if(!set_register(value, get_parameter(value).as_int())) {
+        RCLCPP_ERROR(get_logger(), "Could not configure %s", value);
+        return false;
+      }
+    }
   }
+  RCLCPP_DEBUG_STREAM(get_logger(), "Sparse point cloud configured to " << enabled);
 
   return true;
 }
