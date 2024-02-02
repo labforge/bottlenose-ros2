@@ -149,8 +149,8 @@ bottlenose_camera_driver
 ### Camera Calibration
 
 The camera calibration can be done using the [camera_calibration](https://index.ros.org/p/camera_calibration/) package.
-Bottlenose can rectify and undistort the images on sensor using these calibration files. Please see [our documentation]
-(https://docs.labforge.ca/docs/3d-modules#calibration-data-acquisition) for more information on how to calibrate
+Bottlenose can rectify and undistort the images on sensor using these calibration files. Please see 
+[our documentation](https://docs.labforge.ca/docs/3d-modules#calibration-data-acquisition) for more information on how to calibrate
 Bottlenose. Depending on your setup and lens configuration, you may need to calibrate the camera and update the 
 following files that we provide as samples:
  * [Configuration for Bottlenose Mono](config/camera.yaml)
