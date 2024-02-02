@@ -447,6 +447,8 @@ bool CameraDriver::set_format() {
       }
     }
   }
+  m_width = width;
+  m_height = height;
 
 
   RCLCPP_DEBUG_STREAM(get_logger(), "Offsets applied " << format);
@@ -1631,14 +1633,21 @@ bool CameraDriver::set_calibration(){
   if(m_calibrated){
     m_calibrated = false;
     for(uint32_t i = 0; i < num_sensors; ++i){
-      if(!is_calib_valid(m_cinfo_manager[i]->getCameraInfo())){
+      camera_info_manager::CameraInfo info = m_cinfo_manager[i]->getCameraInfo();
+      if(!is_calib_valid(info)){
         RCLCPP_ERROR(get_logger(), "Invalid calibration!");
         return m_calibrated;
       }
-      if(!make_calibration_registers(i, m_cinfo_manager[i]->getCameraInfo(), kregisters)){
+      if((m_width != (int)info.width) || (m_height != (int)info.height)){
+        RCLCPP_ERROR(get_logger(), "Camera resolution mismatch cam_width = %i cam_height = %i "
+                                   "vs. calib_with = %i calib_height = %i for camera %i!", m_width, m_height,
+                                   info.width, info.height, i);
+        return m_calibrated;
+      }
+      if(!make_calibration_registers(i, info, kregisters)){
         RCLCPP_ERROR(get_logger(), "Only Plumb_bob calibration model supported!");
         return m_calibrated;
-      }      
+      }
     }
 
     for(auto &kreg:kregisters){
@@ -1647,6 +1656,7 @@ bool CameraDriver::set_calibration(){
         return m_calibrated;
       }      
     }
+
 
     if(set_register("saveCalibrationData", true)){
       m_calibrated = set_register("Undistortion", true);

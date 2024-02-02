@@ -98,6 +98,8 @@ namespace bottlenose_camera_driver {
     bool ftp_upload(const std::string &ftp_url, const std::string &file_path);
 
     bool m_calibrated;
+    int m_width;                          ///< Initialised Width
+    int m_height;                         ///< Initialised Height
 
     std::atomic<bool> done;               ///< Flag for management thread to terminate.
     std::thread m_thread;                 ///< Management thread handle.
