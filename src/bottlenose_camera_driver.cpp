@@ -22,21 +22,28 @@
 #include <unistd.h>
 #include <chrono>
 #include <memory>
+#include <utility>
 #include <string>
 #include <cassert>
 #include <list>
 #include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <arpa/inet.h>  // For inet_ntoa
+#include <netinet/in.h> // For struct in_addr
 
 #include <PvDevice.h>
 #include <PvStream.h>
 #include <PvSystem.h>
 #include <PvBuffer.h>
 #include <opencv2/opencv.hpp>
+#include <curl/curl.h>
 
 #include "bottlenose_camera_driver.hpp"
 #include "bottlenose_parameters.hpp"
 #include "bottlenose_chunk_parser.hpp"
 #include <ament_index_cpp/get_package_share_directory.hpp>
+#include <sys/stat.h>
 
 #define BUFFER_COUNT ( 16 )
 #define BUFFER_SIZE ( 3840 * 2160 * 3 ) // 4K UHD, YUV422 + ~1 image plane to account for chunk data
@@ -75,6 +82,36 @@ namespace bottlenose_camera_driver
     return true;  // Successfully parsed the matrix
   }
 
+  static pair<uint64, uint64> convertTimestamp(uint64_t in) {
+    uint64_t seconds = in / 1e3; // milliseconds
+    uint64_t nanoseconds = (in - seconds * 1e3) * 1e6; // nanoseconds
+    return std::make_pair(seconds, nanoseconds);
+  }
+
+  /**
+   * @brief Callback for reading data from curl.
+   * @param ptr Buffer to write to.
+   * @param size Size of each element to read.
+   * @param nmemb Number of elements to read.
+   * @param stream Opened file stream.
+   * @return IO return code.
+   */
+  static size_t curlReadCallback(void *ptr, size_t size, size_t nmemb, FILE *stream) {
+    size_t retcode = fread(ptr, size, nmemb, stream);
+    return retcode;
+  }
+
+  /**
+   * @brief Convert integer coded IP address to string.
+   * @param ip IP address.
+   * @return String representing the IP address.
+   */
+  string ipv4ToString(uint32_t ip) {
+    struct in_addr ip_addr;
+    ip_addr.s_addr = htonl(ip); // Ensure network byte order
+    return std::string(inet_ntoa(ip_addr));
+  }
+
 CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options)
   : Node("bottlenose_camera_driver", node_options),
   m_calibrated(false),
@@ -100,6 +137,13 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options)
   rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_default;
   m_image_color = image_transport::create_camera_publisher(this, "image_color", custom_qos_profile);
   m_image_color_1 = image_transport::create_camera_publisher(this, "image_color_1", custom_qos_profile);
+
+  m_keypoints = create_publisher<visualization_msgs::msg::ImageMarker>("features", 10);
+  m_keypoints_1 = create_publisher<visualization_msgs::msg::ImageMarker>("features_1", 10);
+
+  m_detections = create_publisher<vision_msgs::msg::Detection2DArray>("detections", 10);
+
+  m_pointcloud = create_publisher<sensor_msgs::msg::PointCloud2>("pointcloud", 10);
 
   if(!is_ebus_loaded()) {
     RCLCPP_ERROR(get_logger(), "The eBus Driver is not loaded, please reinstall the driver!");
@@ -171,10 +215,9 @@ std::shared_ptr<sensor_msgs::msg::Image> CameraDriver::convertFrameToMessage(IPv
     }
 
     // Timestamp from epoch conversion (Test this)
-    uint64_t seconds = timestamp / 1e3; // milliseconds
-    uint64_t nanoseconds = (timestamp - seconds * 1e3) * 1e6; // nanoseconds
-    ros_image.header.stamp.nanosec = nanoseconds;
-    ros_image.header.stamp.sec = seconds;
+    auto ts = convertTimestamp(timestamp);
+    ros_image.header.stamp.nanosec = ts.second;
+    ros_image.header.stamp.sec = ts.first;
 //    RCLCPP_DEBUG(get_logger(), "Decoded timestamp %9ld %09ld", seconds, nanoseconds);
     ros_image.header.frame_id = this->get_parameter("frame_id").as_string();
 
@@ -318,6 +361,10 @@ bool CameraDriver::update_runtime_parameters() {
   return set_ccm_custom();
 }
 
+bool CameraDriver::is_stereo() {
+  return get_num_sensors() == 2;
+}
+
 bool CameraDriver::set_interval() {
   PvGenFloat *interval = dynamic_cast<PvGenFloat *>( m_device->GetParameters()->Get("interval"));
   if(interval == nullptr) {
@@ -376,6 +423,33 @@ bool CameraDriver::set_format() {
     return false;
   }
   RCLCPP_DEBUG_STREAM(get_logger(), "Configured format to " << format);
+
+  // Apply Offsets
+  for (auto param: {"OffsetX", "OffsetY"}) {
+    PvGenInteger *intval = static_cast<PvGenInteger *>( m_device->GetParameters()->Get(param));
+    int val = get_parameter(param).as_int();
+    PvResult res = intval->SetValue(val);
+    if (res.IsFailure()) {
+      RCLCPP_WARN_STREAM(get_logger(), "Could not set parameter " << param << " to " << val << " cause "
+                                                                  << res.GetDescription().GetAscii());
+      return false;
+    }
+  }
+  if(is_stereo()) {
+    for (auto param: {"OffsetX1", "OffsetY1"}) {
+      PvGenInteger *intval = static_cast<PvGenInteger *>( m_device->GetParameters()->Get(param));
+      int val = get_parameter(param).as_int();
+      PvResult res = intval->SetValue(val);
+      if (res.IsFailure()) {
+        RCLCPP_WARN_STREAM(get_logger(), "Could not set parameter " << param << " to " << val << " cause "
+                                                                    << res.GetDescription().GetAscii());
+        return false;
+      }
+    }
+  }
+
+
+  RCLCPP_DEBUG_STREAM(get_logger(), "Offsets applied " << format);
 
   return true;
 }
@@ -457,7 +531,7 @@ bool CameraDriver::set_ccm_custom() {
       return false;
     }
     // Wait for parameter pass-through
-    usleep(100000);
+    WAIT_PROPAGATE();
     // Check the return code
     PvGenString *strStatus = dynamic_cast<PvGenString*>( m_device->GetParameters()->Get("CCM0Status"));
     if(!strStatus) {
@@ -484,6 +558,10 @@ bool CameraDriver::set_ccm_custom() {
 }
 
 bool CameraDriver::set_stereo() {
+    // Ignore for bottlenose mono
+    if(!is_stereo()) {
+        return true;
+    }
     bool enable_stereo = get_parameter("stereo").as_bool();
     PvGenBoolean *multipart = dynamic_cast<PvGenBoolean *>( m_device->GetParameters()->Get("GevSCCFGMultiPartEnabled"));
     if(multipart == nullptr) {
@@ -588,7 +666,7 @@ bool CameraDriver::connect() {
     RCLCPP_DEBUG_STREAM(get_logger(), "Set " << param << " to " << get_parameter(param).as_int());
   }
 
-  // Stream tweaks, see https://supportcenter.pleora.com/s/article/Recommended-eBUS-Player-Settings-for-Wireless-Connection
+  // Stream settings
   for (const char*param : {"ResetOnIdle",
                            "MaximumPendingResends",
                            "MaximumResendRequestRetryByPacket",
@@ -648,6 +726,44 @@ void CameraDriver::abort_buffers() {
   }
 }
 
+void CameraDriver::publish_features(const std::vector<keypoints_t> &features, const uint64_t &timestamp) {
+  auto ts = convertTimestamp(timestamp);
+
+  for(auto &feature_list : features) {
+    visualization_msgs::msg::ImageMarker marker;
+    marker.type = visualization_msgs::msg::ImageMarker::POINTS;
+    marker.scale = 3;
+    marker.filled = 0;
+    marker.action = visualization_msgs::msg::ImageMarker::ADD;
+    std_msgs::msg::ColorRGBA outline_color;
+    outline_color.r = 1.0;
+    outline_color.g = 0.0;
+    outline_color.b = 0.0;
+    outline_color.a = 1.0;
+    marker.header.frame_id = this->get_parameter("frame_id").as_string();
+    marker.header.stamp.sec = ts.first;
+    marker.header.stamp.nanosec = ts.second;
+    marker.ns = "features";
+    for(size_t i = 0; i < feature_list.count; i++) {
+      auto pt = geometry_msgs::msg::Point();
+      pt.x = feature_list.points[i].x;
+      pt.y = feature_list.points[i].y;
+      pt.z = 0;
+//      RCLCPP_DEBUG(get_logger(), "(%f, %f)", pt.x, pt.y);
+      marker.points.push_back(pt);
+      marker.outline_colors.push_back(outline_color);
+    }
+    if(feature_list.fid == 0 || feature_list.fid == 2) {
+      m_keypoints->publish(marker);
+      RCLCPP_DEBUG(get_logger(), "Published %zu keypoints stream %i fid %i", marker.points.size(), 0, feature_list.fid);
+    } else if(feature_list.fid == 1 || feature_list.fid == 3) {
+      m_keypoints_1->publish(marker);
+      RCLCPP_DEBUG(get_logger(), "Published %zu keypoints stream %i fid %i", marker.points.size(), 1, feature_list.fid);
+    } else {
+      RCLCPP_WARN(get_logger(), "Invalid feature list id %d", feature_list.fid);
+    }
+  }
+}
 
 void CameraDriver::management_thread() {
   if(!connect()) {
@@ -686,7 +802,24 @@ void CameraDriver::management_thread() {
     return;
   }
   // Enable chunk data for meta information to have reliable timestamping at source
-  if(!enable_chunk("FrameInformation")) {
+  if(!set_chunk("FrameInformation", true)) {
+    disconnect();
+    done = true;
+    return;
+  }
+  // Configure feature point
+  if(!configure_feature_points()) {
+    disconnect();
+    done = true;
+    return;
+  }
+  if(!configure_point_cloud()) {
+    disconnect();
+    done = true;
+    return;
+  }
+  // Configure ai model
+  if(!configure_ai_model()) {
     disconnect();
     done = true;
     return;
@@ -719,6 +852,9 @@ void CameraDriver::management_thread() {
   m_device->StreamEnable();
   cmdStart->Execute();
 
+  // Buffer for keypoint chunk decoding
+  vector<keypoints_t> feature_points;
+
   while(!m_terminate) {
     PvBuffer *buffer = nullptr;
     PvResult operationResult;
@@ -732,20 +868,29 @@ void CameraDriver::management_thread() {
           (operationResult.GetCode() == PvResult::Code::MISSING_PACKETS) ||
           (operationResult.GetCode() == PvResult::Code::CORRUPTED_DATA)))) {
         info_t info = {};
+        bboxes_t bboxes = {};
         uint64_t timestamp = 0;
+        pointcloud_t point_cloud = {};
         switch ( buffer->GetPayloadType() ) {
           case PvPayloadTypeImage:
             img0 = buffer->GetImage();
             // Timestamp handling
             timestamp = buffer->GetTimestamp(); // Fallback timestamp, use Pleora local time
             if(chunkDecodeMetaInformation(buffer, &info)) {
-
               RCLCPP_DEBUG_STREAM(get_logger(), "Bottlenose time: " << ms_to_date_string(info.real_time));
               timestamp = info.real_time;
             } else {
               RCLCPP_WARN(get_logger(), "Could not decode meta information");
             }
-
+            if(chunkDecodeKeypoints(buffer, feature_points)) {
+              this->publish_features(feature_points, timestamp);
+            }
+            if(chunkDecodeBoundingBoxes(buffer, bboxes)) {
+              this->publish_bboxes(bboxes, timestamp);
+            }
+            if(chunkDecodePointCloud(buffer, point_cloud)) {
+              this->publish_pointcloud(point_cloud, timestamp);
+            }
             m_image_msg = convertFrameToMessage(img0, timestamp);
 
             if(m_image_msg != nullptr) {
@@ -771,22 +916,32 @@ void CameraDriver::management_thread() {
             // Timestamp handling
             timestamp = buffer->GetTimestamp(); // Fallback timestamp, use Pleora local time
             if(chunkDecodeMetaInformation(buffer, &info)) {
+              RCLCPP_DEBUG_STREAM(get_logger(), "Bottlenose time: " << ms_to_date_string(info.real_time));
               timestamp = info.real_time;
             } else {
               RCLCPP_WARN(get_logger(), "Could not decode meta information");
+            }
+            if(chunkDecodeKeypoints(buffer, feature_points)) {
+              this->publish_features(feature_points, timestamp);
+            }
+            if(chunkDecodeBoundingBoxes(buffer, bboxes)) {
+              this->publish_bboxes(bboxes, timestamp);
+            }
+            if(chunkDecodePointCloud(buffer, point_cloud)) {
+              this->publish_pointcloud(point_cloud, timestamp);
             }
             m_image_msg = convertFrameToMessage(img0, timestamp);
             m_image_msg_1 = convertFrameToMessage(img1, timestamp);
 
             if(m_image_msg != nullptr) {
-                RCLCPP_DEBUG(get_logger(), "Received left Image %i x %i", buffer->GetImage()->GetWidth(), buffer->GetImage()->GetHeight());
+                RCLCPP_DEBUG(get_logger(), "Received left Image %i x %i", img0->GetWidth(), img0->GetHeight());
                 sensor_msgs::msg::CameraInfo::SharedPtr info_msg(
                         new sensor_msgs::msg::CameraInfo(m_cinfo_manager[0]->getCameraInfo()));
                 info_msg->header = m_image_msg->header;
                 m_image_color.publish(m_image_msg, info_msg);
             }
             if(m_image_msg_1 != nullptr) {
-                RCLCPP_DEBUG(get_logger(), "Received Right Image %i x %i", buffer->GetImage()->GetWidth(), buffer->GetImage()->GetHeight());
+                RCLCPP_DEBUG(get_logger(), "Received Right Image %i x %i", img1->GetWidth(), img1->GetHeight());
                 sensor_msgs::msg::CameraInfo::SharedPtr info_msg(
                         new sensor_msgs::msg::CameraInfo(m_cinfo_manager[1]->getCameraInfo()));
                 info_msg->header = m_image_msg_1->header;
@@ -804,6 +959,7 @@ void CameraDriver::management_thread() {
           RCLCPP_ERROR_STREAM(get_logger(),
                               "Acquisition operation failed with " << operationResult.GetCodeString().GetAscii()
                                                                    << " reconnecting");
+          m_stream->QueueBuffer( buffer );
           break;
         } else {
           // Notify retry
@@ -832,6 +988,102 @@ void CameraDriver::management_thread() {
   done = true;
 }
 
+void CameraDriver::publish_bboxes(const bboxes_t &bboxes, const uint64_t &timestamp) {
+  auto ts = convertTimestamp(timestamp);
+  vision_msgs::msg::Detection2DArray msg;
+
+  for(size_t i = 0; i < bboxes.count; i++) {
+    auto height = bboxes.box[i].bottom - bboxes.box[i].top;
+    auto width = bboxes.box[i].right - bboxes.box[i].left;
+
+    // Encode the bounding box
+    vision_msgs::msg::BoundingBox2D bbox;
+    vision_msgs::msg::ObjectHypothesisWithPose hyp;
+
+    bbox.size_x = width;
+    bbox.size_y = height;
+
+#if ROS_VERSION_MAJOR == 2 && ROS_VERSION_MINOR == 0
+    bbox.center.x = bboxes.box[i].left + width / 2.0;
+    bbox.center.y = bboxes.box[i].top + height / 2.0;
+
+    // Encode the class
+    hyp.score = bboxes.box[i].score;
+    hyp.id = bboxes.box[i].label;
+#else // Humble
+    bbox.center.position.x = bboxes.box[i].left + width / 2.0;
+    bbox.center.position.y = bboxes.box[i].top + height / 2.0;
+
+    // Encode the class
+    hyp.hypothesis.class_id = bboxes.box[i].label;
+    hyp.hypothesis.score = bboxes.box[i].score;
+#endif
+
+    vision_msgs::msg::Detection2D det;
+    det.bbox = bbox;
+    det.results.push_back(hyp);
+
+    msg.detections.push_back(det);
+  }
+  msg.header.frame_id = this->get_parameter("frame_id").as_string();
+  msg.header.stamp.sec = ts.first;
+  msg.header.stamp.nanosec = ts.second;
+  m_detections->publish(msg);
+  RCLCPP_DEBUG(get_logger(), "Published %u bounding boxes stream %i fid %i", bboxes.count, 0, bboxes.fid);
+}
+
+void CameraDriver::publish_pointcloud(const pointcloud_t &pointcloud, const uint64_t &timestamp) {
+  auto ts = convertTimestamp(timestamp);
+
+  sensor_msgs::msg::PointField x_field;
+  x_field.name = "x";
+  x_field.offset = 0; // Assuming 'x' is the first field, so offset is 0
+  x_field.datatype = sensor_msgs::msg::PointField::FLOAT32;
+  x_field.count = 1; // Typically, each coordinate is just one element
+
+
+  sensor_msgs::msg::PointField y_field;
+  y_field.name = "y";
+  y_field.offset = 4; // Assuming 'x' is 4 bytes, 'y' starts after 'x'
+  y_field.datatype = sensor_msgs::msg::PointField::FLOAT32;
+  y_field.count = 1;
+
+  sensor_msgs::msg::PointField z_field;
+  z_field.name = "z";
+  z_field.offset = 8; // Assuming 'x' and 'y' are 4 bytes each, 'z' starts after 'y'
+  z_field.datatype = sensor_msgs::msg::PointField::FLOAT32;
+  z_field.count = 1;
+
+  sensor_msgs::msg::PointCloud2 msg;
+  // Define fields
+  msg.fields.push_back(x_field);
+  msg.fields.push_back(y_field);
+  msg.fields.push_back(z_field);
+  // Set other necessary fields
+  msg.height = 1;  // If your cloud is unordered, height is 1
+  msg.width = pointcloud.count;  // Number of points in the cloud
+
+  // Point step is the size of a point in bytes
+  msg.point_step = sizeof(float) * 3;
+  msg.row_step = msg.point_step * msg.width; // Row step is point step times the width
+  msg.is_dense = false;  // If there are no invalid (NaN, Inf) points, set to true
+
+  msg.data.resize(msg.row_step * msg.height);
+
+  for(size_t i = 0; i < pointcloud.count; i++) {
+    // Copy data into cloud_msg.data
+    std::memcpy(&msg.data[i * msg.point_step + x_field.offset], &pointcloud.points[i].x, sizeof(float));
+    std::memcpy(&msg.data[i * msg.point_step + y_field.offset], &pointcloud.points[i].y, sizeof(float));
+    std::memcpy(&msg.data[i * msg.point_step + z_field.offset], &pointcloud.points[i].z, sizeof(float));
+//    std::memcpy(&msg.data[i * msg.point_step + intensity_field.offset], &intensity, sizeof(float));
+  }
+  msg.header.frame_id = this->get_parameter("frame_id").as_string();
+  msg.header.stamp.sec = ts.first;
+  msg.header.stamp.nanosec = ts.second;
+  m_pointcloud->publish(msg);
+  RCLCPP_DEBUG(get_logger(), "Decoded point cloud with %u points", pointcloud.count);
+}
+
 bool CameraDriver::is_streaming() {
   return !done && m_device != nullptr && m_stream != nullptr && m_stream->IsOpen();
 }
@@ -855,7 +1107,7 @@ bool CameraDriver::is_ebus_loaded() {
   return result.find("ebUniversalProForEthernet") != string::npos;
 }
 
-bool CameraDriver::enable_chunk(string chunk) {
+bool CameraDriver::set_chunk(std::string chunk, bool enable) {
   // Enable chunk mode for any chunk
   if(!set_register("ChunkModeActive", true)) {
     RCLCPP_ERROR(get_logger(), "Could not enable basic chunk output");
@@ -863,39 +1115,261 @@ bool CameraDriver::enable_chunk(string chunk) {
   }
 
   // Select the appropriate enumerator for chunk
-  PvGenParameterArray *lDeviceParams = m_device->GetParameters();
-  PvResult res;
-  PvGenParameter *param = lDeviceParams->Get("ChunkSelector");
-  if (param == nullptr) {
-    RCLCPP_ERROR(get_logger(), "Could not enable access chunk selector");
+  if(!set_enum_register("ChunkSelector", chunk)) {
+    RCLCPP_ERROR_STREAM(get_logger(), "Could not select chunk: " << chunk);
     return false;
-  }
-  PvGenType t;
-  res = param->GetType(t);
-  if (!res.IsOK()) {
-    return false;
-  }
-  if(t == PvGenTypeEnum){
-    PvString lValue = chunk.c_str();
-    res = static_cast<PvGenEnum *>( param )->SetValue( lValue );
-    if(!res.IsOK()) {
-      RCLCPP_ERROR_STREAM(get_logger(), "Could not select chunk: " << chunk);
-      return false;
-    }
   }
 
-  // Set the selected chunk as enabled
-  if(!set_register("ChunkEnable", true)) {
+  // Set the selected chunk as enabled or disabled
+  if(!set_register("ChunkEnable", enable)) {
     RCLCPP_ERROR_STREAM(get_logger(), "Could not enable chunk: " << chunk);
     return false;
   }
 
-  return res.IsOK();
+  return true;
 }
 
 bool CameraDriver::enable_ntp(bool enable) {
   if(!set_register("ntpEnable", enable)) {
     RCLCPP_ERROR_STREAM(get_logger(), "Could not configure NTP to be " << enable);
+    return false;
+  }
+  return true;
+}
+
+bool CameraDriver::configure_feature_points() {
+  bool enabled = false;
+  if(get_parameter("feature_points").as_string() == "none") {
+    // Disable feature_points
+    RCLCPP_DEBUG(get_logger(), "Disabling feature points");
+    return set_chunk("FeaturePoints", false);
+  } else if(get_parameter("feature_points").as_string() == "gftt") {
+    RCLCPP_DEBUG(get_logger(), "Enabling gftt features");
+    if(!set_enum_register("KPCornerType", "GFTT")) {
+      RCLCPP_ERROR(get_logger(), "Could not configure feature_points");
+      return false;
+    }
+    string detector_type = get_parameter("gftt_detector").as_string();
+    if(detector_type == "harris") {
+      if(!set_enum_register("KPDetector", "Harris")) {
+        RCLCPP_ERROR(get_logger(), "Could not configure gftt_detector");
+        return false;
+      }
+    } else if(detector_type == "eigen") {
+      if(!set_enum_register("KPDetector", "Min-Eigen")) {
+        RCLCPP_ERROR(get_logger(), "Could not configure gftt_detector");
+        return false;
+      }
+    } else {
+      RCLCPP_ERROR_STREAM(get_logger(), "Invalid setting for \'gftt_detector\' = "
+        << detector_type << "valid choices are {'harris', 'eigen'}");
+      return false;
+    }
+    if(!set_register("KPQualityLevel", get_parameter("features_quality").as_int())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure features_quality");
+      return false;
+    }
+    if(!set_register("KPMinimunDistance", get_parameter("features_min_distance").as_int())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure features_min_distance");
+      return false;
+    }
+    if(!set_register("KPHarrisParamK", get_parameter("features_harrisk").as_double())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure features_harrisk");
+      return false;
+    }
+    enabled = true;
+  } else if(get_parameter("feature_points").as_string() == "fast9") {
+    RCLCPP_DEBUG(get_logger(), "Enabling fast9 features");
+    if(!set_enum_register("KPCornerType", "Fast9n")) {
+      RCLCPP_ERROR(get_logger(), "Could not configure feature_points");
+      return false;
+    }
+    if(!set_register("KPThreshold", get_parameter("features_threshold").as_int())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure feature_points");
+      return false;
+    }
+    enabled = true;
+  } else {
+    RCLCPP_ERROR_STREAM(get_logger(), "Invalid setting for \'feature_points\' = "
+      << get_parameter("feature_points").as_string() << "valid choices are {'none', 'gftt', 'fast9'}");
+    return false;
+  }
+  if(enabled) {
+    if(!set_register("KPMaxNumber", get_parameter("features_max").as_int())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure feature_points");
+      return false;
+    }
+    if(!set_chunk("FeaturePoints", true)) {
+      RCLCPP_ERROR(get_logger(), "Could not configure feature_points");
+      return false;
+    }
+  }
+  return true;
+}
+
+bool CameraDriver::configure_point_cloud() {
+  if(!is_stereo()) {
+    return true;
+  }
+
+  bool enabled = get_parameter("sparse_point_cloud").as_bool();
+  if(!set_chunk("SparsePointCloud", enabled)) {
+    RCLCPP_ERROR(get_logger(), "Could not configure point cloud");
+    return false;
+  }
+  if(enabled) {
+    int akazeValue = get_parameter("AKAZELength").as_int();
+    string value = std::to_string(akazeValue) + "-Bits";
+    if(!set_enum_register("AKAZELength", value)) {
+      RCLCPP_ERROR(get_logger(), "Could not configure AKAZELength");
+      return false;
+    }
+    akazeValue = get_parameter("AKAZEWindow").as_int();
+    value = std::to_string(akazeValue) + "x" + std::to_string(akazeValue) + "-Window";
+    if(!set_enum_register("AKAZEWindow", value)) {
+      RCLCPP_ERROR(get_logger(), "Could not configure AKAZEWindow");
+      return false;
+    }
+
+    for(auto value : {"HAMATXOffset",
+                        "HAMATYOffset",
+                        "HAMATRect1X",
+                        "HAMATRect1Y",
+                        "HAMATRect2X",
+                        "HAMATRect2Y",
+                        "HAMATMinThreshold",
+                        "HAMATRatioThreshold"}) {
+      if(!set_register(value, get_parameter(value).as_int())) {
+        RCLCPP_ERROR(get_logger(), "Could not configure %s", value);
+        return false;
+      }
+    }
+  }
+  RCLCPP_DEBUG_STREAM(get_logger(), "Sparse point cloud configured to " << enabled);
+
+  return true;
+}
+
+bool CameraDriver::configure_ai_model() {
+  bool enabled = false;
+  if(get_parameter("ai_model").as_string().empty()) {
+    RCLCPP_DEBUG(get_logger(), "AI model disabled");
+  } else {
+    // Figure out network configuration
+    PvGenInteger *address = static_cast<PvGenInteger *>( m_device->GetParameters()->Get("GevCurrentIPAddress"));
+    PvGenBoolean *enable = static_cast<PvGenBoolean *>( m_device->GetParameters()->Get("EnableWeightsUpdate"));
+    PvGenString *model = static_cast<PvGenString *>( m_device->GetParameters()->Get("DNNStatus"));
+    if (enable == nullptr || address == nullptr || model == nullptr) {
+      RCLCPP_ERROR(get_logger(), "Could not configure AI model, please update your firmware");
+      return false;
+    }
+    int64_t intIpAddress;
+    PvResult res = address->GetValue(intIpAddress);
+    if (res.IsFailure()) {
+      RCLCPP_ERROR(get_logger(), "Could not enumerate network address");
+      return false;
+    }
+    string ipAddress = ipv4ToString(intIpAddress);
+    bool status;
+    res = enable->GetValue(status);
+    if (res.IsFailure()) {
+      RCLCPP_ERROR(get_logger(), "Could not determine model status");
+      return false;
+    }
+    // Reset transfer
+    if (status) {
+      res = enable->SetValue(false);
+      if (res.IsFailure()) {
+        RCLCPP_ERROR(get_logger(), "Could not reset model transfer");
+        return false;
+      }
+    }
+    res = enable->SetValue(true);
+    if (res.IsFailure()) {
+      RCLCPP_ERROR(get_logger(), "Could not initiate model transfer");
+      return false;
+    }
+    size_t trials = 10;
+    PvString modelStatus;
+    while (trials-- > 0) {
+      res = model->GetValue(modelStatus);
+      string modelStatusStr = modelStatus.GetAscii();
+      if (res.IsFailure()) {
+        RCLCPP_ERROR(get_logger(), "Could not determine model status");
+        return false;
+      }
+      if (modelStatusStr.find("FTP running") != std::string::npos) {
+        break;
+      }
+      WAIT_PROPAGATE();
+    }
+    if(trials == 0) {
+      RCLCPP_ERROR(get_logger(), "Could not file transfer");
+      return false;
+    }
+    filesystem::path fsPath(get_parameter("ai_model").as_string());
+    string basename = fsPath.filename().string();
+    string target = string("ftp://anonymous:@") + ipAddress + "/" + basename;
+    if(!ftp_upload(target, get_parameter("ai_model").as_string())) {
+      return false;
+    }
+    trials = 10;
+    while (trials-- > 0) {
+      res = model->GetValue(modelStatus);
+      string modelStatusStr = modelStatus.GetAscii();
+      if (res.IsFailure()) {
+        RCLCPP_ERROR(get_logger(), "Could not determine model status");
+        return false;
+      }
+      if (modelStatusStr.find("Loaded") != std::string::npos) {
+        break;
+      }
+      usleep(100000);
+    }
+    if(trials == 0) {
+      RCLCPP_ERROR(get_logger(), "Could not initialize model");
+      return false;
+    } else {
+      RCLCPP_DEBUG(get_logger(), "Model loaded, last status %s", modelStatus.GetAscii());
+    }
+
+    // Disable debugging
+    if(!set_register("DNNDrawOnStream", false)) {
+      RCLCPP_ERROR(get_logger(), "Could not configure AI model: DNNDrawOnStream");
+      return false;
+    }
+    // Enable label output
+    if(!set_register("DNNOutputLabels", true)) {
+      RCLCPP_ERROR(get_logger(), "Could not configure AI model: DNNOutputLabels");
+      return false;
+    }
+//    // Set DNN parameters : invalid for bboxes
+//    if(!set_register("DNNTopK", get_parameter("DNNTopK").as_int())) {
+//      RCLCPP_ERROR(get_logger(), "Could not configure AI model: DNNTopK");
+//      return false;
+//    }
+    if(!set_register("DNNMaxDetections", get_parameter("DNNMaxDetections").as_int())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure AI model: DNNMaxDetections");
+      return false;
+    }
+    if(!set_register("DNNNonMaxSuppression", get_parameter("DNNNonMaxSuppression").as_double())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure AI model: DNNNonMaxSuppression");
+      return false;
+    }
+    if(!set_register("DNNConfidence", get_parameter("DNNConfidence").as_double())) {
+      RCLCPP_ERROR(get_logger(), "Could not configure AI model: DNNConfidence");
+      return false;
+    }
+    enabled = true;
+  }
+
+  // Enable or disable model based on outcome of previous check
+  if(!set_register("DNNEnable", enabled)) {
+    RCLCPP_ERROR(get_logger(), "Could not configure DNNEnable");
+    return false;
+  }
+  if(!set_chunk("BoundingBoxes", enabled)) {
+    RCLCPP_ERROR(get_logger(), "Could not configure feature_points");
     return false;
   }
   return true;
@@ -983,6 +1457,98 @@ bool CameraDriver::set_register(std::string regname, std::variant<int64_t, doubl
   return res.IsOK();
 }
 
+bool CameraDriver::set_enum_register(std::string regname, std::string value) {
+  PvGenParameter *lGenParameter = m_device->GetParameters()->Get(regname.c_str());
+  if(lGenParameter == nullptr) {
+    RCLCPP_ERROR_STREAM(get_logger(), "Could not configure parameter " << regname << "please check you are running the latest firmware");
+    return false;
+  }
+
+  PvGenType lGenType;
+  PvResult res = lGenParameter->GetType(lGenType);
+  if(!res.IsOK())
+    return false;
+
+  if(lGenType == PvGenTypeEnum){
+    PvString lValue = value.c_str();
+    PvGenEnum *lGenEnum = dynamic_cast<PvGenEnum *>( lGenParameter );
+    res = lGenEnum->SetValue(lValue);
+    if(!res.IsOK()) {
+      RCLCPP_ERROR_STREAM(get_logger(), "Could not set enum register: " << regname << " to " << value
+        << " cause: " << res.GetDescription().GetAscii());
+      int64_t count;
+      res = lGenEnum->GetEntriesCount(count);
+      if(res) {
+        for(int64_t i = 0; i < count; i++) {
+          const PvGenEnumEntry *entry;
+          res = lGenEnum->GetEntryByIndex(i, &entry);
+          if(res) {
+            PvString name;
+            res = entry->GetName(name);
+            if(res) {
+              RCLCPP_ERROR_STREAM(get_logger(), "Valid entry [" << i << "] = " << name.GetAscii());
+            }
+          }
+        }
+      }
+      return false;
+    }
+  } else {
+    RCLCPP_ERROR_STREAM(get_logger(), "Register " << regname << " is not an enum");
+    return false;
+  }
+
+  return res.IsOK();
+}
+
+// const char *ftp_url = "ftp://example.com/path/to/your/file"; // Replace with your FTP URL
+// const char *file_path = "/path/to/local/file"; // Replace with the path to the local file
+bool CameraDriver::ftp_upload(const std::string &ftp_url, const std::string &file_path) {
+  CURL *curl;
+  CURLcode res;
+  FILE *hd_src;
+  struct stat file_info{};
+  curl_off_t fsize;
+
+  // Get the file size
+  if(stat(file_path.c_str(), &file_info)) {
+    RCLCPP_ERROR_STREAM(get_logger(), "Could not retrieve file information: " << file_path);
+    return false;
+  }
+  fsize = (curl_off_t)file_info.st_size;
+
+  // Open the file to upload
+  hd_src = fopen(file_path.c_str(), "rb");
+
+  curl_global_init(CURL_GLOBAL_ALL);
+  curl = curl_easy_init();
+  if(curl) {
+    // Set up the FTP upload
+    curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
+    curl_easy_setopt(curl, CURLOPT_URL, ftp_url.c_str());
+    curl_easy_setopt(curl, CURLOPT_READDATA, hd_src);
+    curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, fsize);
+    curl_easy_setopt(curl, CURLOPT_READFUNCTION, curlReadCallback);
+    curl_easy_setopt(curl, CURLOPT_FTPPORT, "-"); // Use "-" to enable active mode, PASV not supported by camera
+
+    // Perform the upload
+    res = curl_easy_perform(curl);
+
+    // Check for errors
+    if(res != CURLE_OK) {
+      RCLCPP_ERROR_STREAM(get_logger(), "curl_easy_perform() failed: " << curl_easy_strerror(res));
+      return false;
+    }
+
+    // Clean up
+    curl_easy_cleanup(curl);
+  }
+  fclose(hd_src);
+
+  curl_global_cleanup();
+  return true;
+}
+
 static void decompose_projection(double *pm, double *tvec, double *rvec){
   if((pm == nullptr) || (tvec == nullptr) || (rvec == nullptr)) return;
     
@@ -1009,7 +1575,7 @@ static bool make_calibration_registers(uint32_t sid, sensor_msgs::msg::CameraInf
   if(cam.distortion_model != "plumb_bob"){    
     return false;
   }
-
+  
   decompose_projection(cam.p.data(), tvec, rvec);
   std::string id = std::to_string(sid);
 
@@ -1037,6 +1603,19 @@ static bool make_calibration_registers(uint32_t sid, sensor_msgs::msg::CameraInf
   return true;
 }
 
+static bool is_calib_valid(sensor_msgs::msg::CameraInfo cam){
+  if((cam.width == 0) || (cam.height == 0)){
+    return false;
+  }
+
+  if(((int32_t)cam.k[0]) == 0) return false;
+  if(((int32_t)cam.k[2]) == 0) return false; 
+  if(((int32_t)cam.k[4]) == 0) return false;  
+  if(((int32_t)cam.k[5]) == 0) return false;
+
+  return true;
+}
+
 bool CameraDriver::set_calibration(){
   uint32_t num_sensors = get_num_sensors();
   m_calibrated = false;
@@ -1052,6 +1631,10 @@ bool CameraDriver::set_calibration(){
   if(m_calibrated){
     m_calibrated = false;
     for(uint32_t i = 0; i < num_sensors; ++i){
+      if(!is_calib_valid(m_cinfo_manager[i]->getCameraInfo())){
+        RCLCPP_ERROR(get_logger(), "Invalid calibration!");
+        return m_calibrated;
+      }
       if(!make_calibration_registers(i, m_cinfo_manager[i]->getCameraInfo(), kregisters)){
         RCLCPP_ERROR(get_logger(), "Only Plumb_bob calibration model supported!");
         return m_calibrated;
@@ -1065,14 +1648,31 @@ bool CameraDriver::set_calibration(){
       }      
     }
 
-    if(set_register("saveCalibrationData", true)){            
+    if(set_register("saveCalibrationData", true)){
       m_calibrated = set_register("Undistortion", true);
-      if(num_sensors == 2) m_calibrated &= set_register("Rectification", true);
       if(!m_calibrated){
-        RCLCPP_ERROR(get_logger(), "Failed to trigger Undistortion/Rectification mode on camera.");
+        RCLCPP_ERROR(get_logger(), "Failed to trigger Undistortion mode on camera.");
+        return false;
+      }
+      RCLCPP_DEBUG(get_logger(), "Calibration committed");
+      if(num_sensors == 2) {
+        if(!get_parameter("sparse_point_cloud").as_bool()) { // Special handling, if we have 3d points decoded, we cannot rectify the images
+          if(!set_register("Rectification", true)) {
+            RCLCPP_ERROR(get_logger(), "Failed to trigger Rectification mode on camera.");
+            return m_calibrated;
+          }
+          RCLCPP_DEBUG(get_logger(), "Rectification enabled");
+        } else {
+          if(!set_register("Rectification", false)) {
+            RCLCPP_ERROR(get_logger(), "Failed to disable Rectification mode on camera.");
+            return m_calibrated;
+          }
+          RCLCPP_DEBUG(get_logger(), "Rectification disabled");
+        }
       }
     } else{
       RCLCPP_ERROR(get_logger(), "Failed to trigger calibration mode on camera.");
+      return false;
     }
   }
   

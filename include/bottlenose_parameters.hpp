@@ -33,6 +33,9 @@ const parameter_t bottlenose_parameters[] = {
   {"mac_address", rclcpp::ParameterValue("00:00:00:00:00:00")},
   {"keep_partial", rclcpp::ParameterValue(false)},
   {"stereo", rclcpp::ParameterValue(false)},
+  {"feature_points", rclcpp::ParameterValue("none")},
+  {"ai_model", rclcpp::ParameterValue("")},
+  {"sparse_point_cloud", rclcpp::ParameterValue(false)},
   /* Device parameters */
   {"fps", rclcpp::ParameterValue(10.0)},
   {"exposure", rclcpp::ParameterValue(20.0)},
@@ -42,6 +45,10 @@ const parameter_t bottlenose_parameters[] = {
   {"dgainGB", rclcpp::ParameterValue(1024)},
   {"dgainGR", rclcpp::ParameterValue(1024)},
   {"dgainRed", rclcpp::ParameterValue(1024)},
+  {"OffsetX", rclcpp::ParameterValue(108)},
+  {"OffsetY", rclcpp::ParameterValue(440)},
+  {"OffsetX1", rclcpp::ParameterValue(108)},
+  {"OffsetY1", rclcpp::ParameterValue(440)},
   /* ISP parameters */
   {"wbBlue", rclcpp::ParameterValue(1.0)},
   {"wbGreen", rclcpp::ParameterValue(1.0)},
@@ -63,20 +70,47 @@ const parameter_t bottlenose_parameters[] = {
   {"autoExposureEnable", rclcpp::ParameterValue(false)},
   {"autoExposureLuminanceTarget", rclcpp::ParameterValue(0x4000)},
 
-  /* GEV Parameters */
-  {"AnswerTimeout", rclcpp::ParameterValue(100)},
-  {"CommandRetryCount", rclcpp::ParameterValue(50)},
-  {"MaximumPendingResends", rclcpp::ParameterValue(0)},
-  {"MaximumResendRequestRetryByPacket", rclcpp::ParameterValue(0)},
-  {"MaximumResendGroupSize", rclcpp::ParameterValue(0)},
-  {"ResendRequestTimeout", rclcpp::ParameterValue(100)},
-  {"RequestTimeout", rclcpp::ParameterValue(10000)},
-  {"ResetOnIdle", rclcpp::ParameterValue(2000)},
+  /* GEV Parameters (Pleora defaults) */
+  {"AnswerTimeout", rclcpp::ParameterValue(1000)},
+  {"CommandRetryCount", rclcpp::ParameterValue(3)},
+  {"MaximumPendingResends", rclcpp::ParameterValue(512)},
+  {"MaximumResendRequestRetryByPacket", rclcpp::ParameterValue(3)},
+  {"MaximumResendGroupSize", rclcpp::ParameterValue(15)},
+  {"ResendRequestTimeout", rclcpp::ParameterValue(5000)},
+  {"RequestTimeout", rclcpp::ParameterValue(1000)},
+  {"ResetOnIdle", rclcpp::ParameterValue(200)},
 
   /* Calibration file parameters */
   {"camera_calibration_file", rclcpp::ParameterValue("")},
   {"left_camera_calibration_file", rclcpp::ParameterValue("")},
   {"right_camera_calibration_file", rclcpp::ParameterValue("")},
+
+  /* Keypoint parameters */
+  {"features_max",  rclcpp::ParameterValue(1000)},
+  {"features_threshold",  rclcpp::ParameterValue(100)},
+  {"features_nms",  rclcpp::ParameterValue(false)},
+  {"gftt_detector", rclcpp::ParameterValue("harris")},
+  {"features_quality", rclcpp::ParameterValue(500)},
+  {"features_min_distance", rclcpp::ParameterValue(15)},
+  {"features_harrisk", rclcpp::ParameterValue(0.0)},
+
+  /* Pointcloud parameters */
+  {"AKAZELength", rclcpp::ParameterValue(120)},
+  {"AKAZEWindow", rclcpp::ParameterValue(20)},
+  {"HAMATXOffset", rclcpp::ParameterValue(0)},
+  {"HAMATYOffset", rclcpp::ParameterValue(0)},
+  {"HAMATRect1X", rclcpp::ParameterValue(64)},
+  {"HAMATRect1Y", rclcpp::ParameterValue(64)},
+  {"HAMATRect2X", rclcpp::ParameterValue(128)},
+  {"HAMATRect2Y", rclcpp::ParameterValue(128)},
+  {"HAMATMinThreshold", rclcpp::ParameterValue(500)},
+  {"HAMATRatioThreshold",rclcpp::ParameterValue(1023)},
+
+  /* DNN parameters */
+//  {"DNNTopK", rclcpp::ParameterValue(1)}, // Not needed for Bounding boxes
+  {"DNNMaxDetections", rclcpp::ParameterValue(100)},
+  {"DNNNonMaxSuppression", rclcpp::ParameterValue(0.45)},
+  {"DNNConfidence", rclcpp::ParameterValue(0.2)},
 
   /* NTP support */
   {"ntpEnable", rclcpp::ParameterValue(false)}

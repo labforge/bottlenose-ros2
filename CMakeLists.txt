@@ -34,10 +34,18 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(vision_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 find_package(camera_info_manager REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(camera_calibration_parsers REQUIRED)
 find_package(OpenCV 4 REQUIRED)
+find_package(CURL REQUIRED)
+
+# Special handling for legacy ROS messages (i.e. Foxy)
+add_compile_definitions(ROS_VERSION_MAJOR=${std_msgs_VERSION_MAJOR})
+add_compile_definitions(ROS_VERSION_MINOR=${std_msgs_VERSION_MINOR})
+
 
 add_library(bottlenose_camera_driver SHARED
         src/bottlenose_camera_driver.cpp
@@ -56,10 +64,13 @@ ament_target_dependencies(bottlenose_camera_driver
     "rclcpp_components"
     "sensor_msgs"
     "std_msgs"
+    "vision_msgs"
+    "visualization_msgs"
     "camera_info_manager"
     "image_transport"
     "camera_calibration_parsers"
     "OpenCV"
+    "CURL"
 )
 
 rclcpp_components_register_nodes(bottlenose_camera_driver "bottlenose_camera_driver::CameraDriver")

@@ -149,6 +149,91 @@ bool chunkDecodeMetaInformation(PvBuffer *buffer, info_t *info) {
   return parseMetaInformation(data, info, &offset);
 }
 
+static bool parseChunkKeypointData(uint8_t *data, keypoints_t *kp, uint32_t *offset){
+  if(data == nullptr) return false;
+  if(kp == nullptr) return false;
+  if(offset == nullptr) return false;
+
+  uint32_t num_keypoints = uintFromBytes(data, 2, true);
+  uint32_t frame_id = uintFromBytes(&data[2], 2, true);
+  if((num_keypoints == 0) || (num_keypoints > MAX_KEYPOINTS)){
+    return false;
+  }
+  if(frame_id > 3) return false;
+
+  kp->count = num_keypoints;
+  kp->fid = frame_id;
+  memcpy(kp->points, &data[4], sizeof(point_u16_t) * kp->count);
+  *offset = (frame_id > 1)?((num_keypoints + 1) * 4):0;
+
+  return true;
+}
+
+bool chunkDecodeKeypoints(PvBuffer *buffer, std::vector<keypoints_t> &keypoints) {
+  uint8_t *data = getChunkRawData(buffer, CHUNK_ID_FEATURES);
+  if(data == nullptr)
+    return false;
+
+  keypoints.clear();
+
+  keypoints_t kp;
+  uint32_t offset = 0;
+  bool parsed = parseChunkKeypointData(data, &kp, &offset);
+  if(parsed){
+    keypoints.push_back(kp);
+    if(offset > 0) {
+      parsed = parseChunkKeypointData(&data[offset], &kp, &offset);
+      if(parsed)
+        keypoints.push_back(kp);
+    }
+  }
+  return parsed;
+}
+
+bool parseChunkBoundingBoxData(uint8_t *data, bboxes_t *boxes){
+  if(data == nullptr) return false;
+  if(boxes == nullptr) return false;
+
+  uint32_t frame_id = uintFromBytes(data, 4, true);
+  uint32_t num_boxes = uintFromBytes(&data[4], 4, true);
+
+  if((num_boxes == 0) || (num_boxes > MAX_BBOXES)){
+    return false;
+  }
+  if(frame_id > 3) return false;
+
+  boxes->count = num_boxes;
+  boxes->fid = frame_id;
+  memcpy(boxes->box, &data[8], sizeof(bbox_t) * boxes->count);
+
+  return true;
+}
+
+bool chunkDecodeBoundingBoxes(PvBuffer *buffer, bboxes_t &bboxes) {
+  uint8_t *data = getChunkRawData(buffer, CHUNK_ID_DNNBBOXES);
+
+  if(data == nullptr) return false;
+
+  bzero(&bboxes, sizeof(bboxes_t));
+  bool parsed = parseChunkBoundingBoxData(data, &bboxes);
+
+  return parsed;
+}
+
+bool chunkDecodePointCloud(PvBuffer *buffer, pointcloud_t &pointcloud) {
+  uint8_t *data = getChunkRawData(buffer, CHUNK_ID_POINTCLOUD);
+  if(data == nullptr) return false;
+
+  bzero(&pointcloud, sizeof(pointcloud_t));
+
+  pointcloud.count = uintFromBytes(data, 4, true);
+
+  uint32_t offset = 1 * sizeof(uint32_t);
+  memcpy(pointcloud.points, &data[offset], sizeof(vector3f_t) * pointcloud.count);
+
+  return true;
+}
+
 std::string ms_to_date_string(uint64_t ms) {
   // Convert milliseconds to seconds
   std::chrono::seconds seconds(ms / 1000);

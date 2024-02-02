@@ -47,47 +47,78 @@ ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p ma
 
 ### Default Parameters
 
-| Parameter                                | Description                                                                      | Default                          | Run-time adjustable |
-|------------------------------------------|----------------------------------------------------------------------------------|----------------------------------|---------------------|
-| ```mac_address```                        | The MAC address of Bottlenose                                                    | ```00:00:00:00:00:00```          |                     |
-| ```frame_id```                           | The frame_id embedded in image headers                                           | ```camera```                     | :white_check_mark:  |
-| ```keep_partial```                       | Keep partial images (i.e. corrupted in transmission)                             | ```false```                      | :white_check_mark:  |
-| ```format```                             | Format of the camera (*)                                                         | ```1920x1080```                  |                     |
-| ```fps```                                | Target frames per second (*)                                                     | ```10.0```                       |                     |
-| ```ntpEnable```                          | Enable NTP UDP broadcast receptions on Bottlenose                                | ```false```                      |                     |
-| ***Image Sensor(s) Controls***           | (**)                                                                             |                                  |                     |
-| ```exposure```                           | Exposure time in milliseconds                                                    | ```20.0```                       | :white_check_mark:  |
-| ```gain```                               | Analog gain                                                                      | ```1.0```                        | :white_check_mark:  |
-| ```dGainBlue```                          | Digital gain for blue pixels in Bayer array                                      | ```1024```                       | :white_check_mark:  |
-| ```dgainGB```                            | Digital gain for green-blue pixels in Bayer array                                | ```1024```                       | :white_check_mark:  |
-| ```dgainGR```                            | Digital gain for green-red pixels in Bayer array                                 | ```1024```                       | :white_check_mark:  |
-| ```dGainRed```                           | Digital gain for red pixels in Bayer array                                       | ```1024```                       | :white_check_mark:  |
-| **Image Processing Controls**            |                                                                                  |                                  |                     |
-| ```gamma```                              | Gamma correction of the image                                                    | ```2.2```                        | :white_check_mark:  |
-| ```wbBlue```                             | White balance for blue component                                                 | ```1.0```                        | :white_check_mark:  |
-| ```wbGreen```                            | White balance for green component                                                | ```1.0```                        | :white_check_mark:  |
-| ```wbRed```                              | White balance for red component                                                  | ```1.0```                        | :white_check_mark:  |
-| ```wbAuto```                             | Auto white balance control                                                       | ```true```                       | :white_check_mark:  |
-| ```blackBlue```                          | Black level for blue pixels in Bayer array                                       | ```4200```                       | :white_check_mark:  |
-| ```blackGB```                            | Black level for green-blue pixels in Bayer array                                 | ```4200```                       | :white_check_mark:  |
-| ```blackGR```                            | Black level for green-red pixels in Bayer array                                  | ```4200```                       | :white_check_mark:  |
-| ```blackRed```                           | Black level for red pixels in Bayer array                                        | ```4200```                       | :white_check_mark:  |
-| **Color Correction Controls**            |                                                                                  |                                  |                     |
-| ```CCMColorProfile```                    | Color correction profile preset                                                  | ```IndoorWarmLightCurtainOpen``` |                     |
-| ```CCMCustom```                          | Custom color correction matrix (only valid if ```CCMColorProfile```=```Custom``` | ```1,0,0;0,1,0;0,0,1```          |                     |
-| **Auto Exposure and Auto Gain Controls** |                                                                                  |                                  |                     |
-| ```autoExposureEnable```                 | Enable auto exposure and auto gain control                                       | ```false```                      |                     |
-| ```autoExposureLuminanceTarget```        | Luminance target for exposure control ```[0, 65535]```                           | ```16384```                      |                     |
-| **GigE Vision Stream Parameters**        |                                                                                  |                                  |                     |
-| ```AnswerTimeout```                      | Time the GigE Vision Device can take for command response.                       | ```100```                        |                     |
-| ```CommandRetryCount```                  | Command attempts before it is considered as failed                               | ```50```                         |                     |
-| ```MaximumPendingResends```              | Maximum number of packets in a block that can be missing                         | ```0```                          |                     |
-| ```MaximumResendRequestRetryByPacket```  | The maximum number of times a resend request can be issued.                      | ```0```                          |                     |
-| ```MaximumResendGroupSize```             | Maximum number of packets to resend at once                                      | ```0```                          |                     |
-| ```ResendRequestTimeout```               | Timeout for resend requests in (us)                                              | ```100```                        |                     |
-| ```RequestTimeout```                     | Maximum time that the data receiver waits for all the packets of a block (ms)    | ```10000```                      |                     |
-| ```ResetOnIdle```                        | Time without packets before resetting itself                                     | ```2000```                       |                     |
-| ```Timeout```                            | Buffer reception timeout in (ms)                                                 | ```5000```                       |                     |
+| Parameter                                | Description                                                                            | Default                          | Run-time adjustable |
+|------------------------------------------|----------------------------------------------------------------------------------------|----------------------------------|---------------------|
+| ```mac_address```                        | The MAC address of Bottlenose                                                          | ```00:00:00:00:00:00```          |                     |
+| ```frame_id```                           | The frame_id embedded in image headers                                                 | ```camera```                     | :white_check_mark:  |
+| ```keep_partial```                       | Keep partial images (i.e. corrupted in transmission)                                   | ```false```                      | :white_check_mark:  |
+| ```format```                             | Format of the camera (*)                                                               | ```1920x1080```                  |                     |
+| ```fps```                                | Target frames per second (*)                                                           | ```10.0```                       |                     |
+| ```ntpEnable```                          | Enable NTP UDP broadcast receptions on Bottlenose                                      | ```false```                      |                     |
+| ```stereo```                             | Enable stereo mode (Bottlenose Stereo only)                                            | ```false```                      |                     |
+| ```feature_points```                     | Configure feature point type {```none```, ```gftt```, ```fast9```)                     | ```none```                       |                     |
+| ```ai_model```                           | Configure the path to the AI model file (enables Bottlenose on-board AI)               | ```""```                         |                     |
+| ```sparse_point_cloud```                 | Enable sparse point-cloud output (Stereo only)                                         | ```false```                      |                     |
+| ***Image Sensor(s) Controls***           | (**)                                                                                   |                                  |                     |
+| ```exposure```                           | Exposure time in milliseconds                                                          | ```20.0```                       | :white_check_mark:  |
+| ```gain```                               | Analog gain                                                                            | ```1.0```                        | :white_check_mark:  |
+| ```dGainBlue```                          | Digital gain for blue pixels in Bayer array                                            | ```1024```                       | :white_check_mark:  |
+| ```dgainGB```                            | Digital gain for green-blue pixels in Bayer array                                      | ```1024```                       | :white_check_mark:  |
+| ```dgainGR```                            | Digital gain for green-red pixels in Bayer array                                       | ```1024```                       | :white_check_mark:  |
+| ```dGainRed```                           | Digital gain for red pixels in Bayer array                                             | ```1024```                       | :white_check_mark:  |
+| ```OffsetX```                            | Readout offset from of image sensor                                                    | ```108```                        |                     |
+| ```OffsetY```                            | Readout offset from of image sensor                                                    | ```440```                        |                     |
+| ```OffsetX1```                           | Readout offset from of image sensor 1 (Stereo only)                                    | ```108```                        |                     |
+| ```OffsetY1```                           | Readout offset from of image sensor 1 (Stereo only)                                    | ```440```                        |                     |
+| **Image Processing Controls**            |                                                                                        |                                  |                     |
+| ```gamma```                              | Gamma correction of the image                                                          | ```2.2```                        | :white_check_mark:  |
+| ```wbBlue```                             | White balance for blue component                                                       | ```1.0```                        | :white_check_mark:  |
+| ```wbGreen```                            | White balance for green component                                                      | ```1.0```                        | :white_check_mark:  |
+| ```wbRed```                              | White balance for red component                                                        | ```1.0```                        | :white_check_mark:  |
+| ```wbAuto```                             | Auto white balance control                                                             | ```true```                       | :white_check_mark:  |
+| ```blackBlue```                          | Black level for blue pixels in Bayer array                                             | ```4200```                       | :white_check_mark:  |
+| ```blackGB```                            | Black level for green-blue pixels in Bayer array                                       | ```4200```                       | :white_check_mark:  |
+| ```blackGR```                            | Black level for green-red pixels in Bayer array                                        | ```4200```                       | :white_check_mark:  |
+| ```blackRed```                           | Black level for red pixels in Bayer array                                              | ```4200```                       | :white_check_mark:  |
+| **Color Correction Controls**            |                                                                                        |                                  |                     |
+| ```CCMColorProfile```                    | Color correction profile preset                                                        | ```IndoorWarmLightCurtainOpen``` |                     |
+| ```CCMCustom```                          | Custom color correction matrix (only valid if ```CCMColorProfile```=```Custom```       | ```1,0,0;0,1,0;0,0,1```          |                     |
+| **Auto Exposure and Auto Gain Controls** |                                                                                        |                                  |                     |
+| ```autoExposureEnable```                 | Enable auto exposure and auto gain control                                             | ```false```                      |                     |
+| ```autoExposureLuminanceTarget```        | Luminance target for exposure control ```[0, 65535]```                                 | ```16384```                      |                     |
+| **Feature Point Controls**               |                                                                                        |                                  |                     |
+| ```features_max```                       | Maximum number of features to detect                                                   | ```1000```                       |                     |
+| ```features_threshold```                 | Threshold for feature detection ```[0,255]``` (***fast9 only***)                       | ```100```                        |                     |
+| ```features_nms```                       | Use Non-maximum suppression (***fast9 only***)                                         | ```false```                      |                     |
+| ```gftt_detector```                      | Good Features to Track (GFTT) detector (```harris``` or ```eigen```) (***gftt only***) | ```harris```                     |                     |
+| ```features_quality```                   | Quality level for GFTT detector ```[0,1023]``` (***gftt only***)                       | ```500```                        |                     |
+| ```features_min_distance```              | Minimum distance of features ```[0,30]``` (***gftt only***)                            | ```15```                         |                     |
+| ```features_harrisk```                   | Harris parameter k ```[0,1.0]``` (***gftt/harris only***)                              | ```0.0```                        |                     |
+| **AI Model Controls**                    |                                                                                        |                                  |                     |
+| ```DNNMaxDetections```                   | Maximum number of detections                                                           | ```100```                        |                     |
+| ```DNNNonMaxSuppression```               | Set the non-maximum suppression value for bounding boxes.                              | ```0.45```                       |                     |
+| ```DNNConfidence```                      | Set confidence threshold of the detector.                                              | ```0.2```                        |                     |
+| **Sparse Point Cloud Controls**          |                                                                                        |                                  |                     |
+| ```AKAZELength```                        | Length of AKAZE descriptor in bits (```120, 128, 256, 486```)                          | ```120```                        |                     |
+| ```AKAZEWindow```                        | Window size of AKAZE descriptor ```XX``` for ```XX x XX``` window (20, 30, 40, 60, 80) | ```20```                         |                     |
+| ```HAMATXOffset```                       | Offset in number of pixels from source x to reference center x                         | ```0```                          |                     |
+| ```HAMATYOffset```                       | Offset in number of pixels from source x to reference center y                         | ```0```                          |                     |
+| ```HAMATRect1X```                        | First rectangle range in x direction in terms of number of pixels                      | ```64```                         |                     |
+| ```HAMATRect1Y```                        | First rectangle range in y direction in terms of number of pixels                      | ```64```                         |                     |
+| ```HAMATRect2X```                        | Second rectangle range in x direction in terms of number of pixels                     | ```128```                        |                     |
+| ```HAMATRect2Y```                        | Second rectangle range in y direction in terms of number of pixels                     | ```128```                        |                     |
+| ```HAMATMinThreshold```                  | Minimum hamming distance threshold.                                                    | ```500```                        |                     |
+| ```HAMATRatioThreshold```                | Minimum to next minimum hamming distance ratio threshold.                              | ```1023```                       |                     |
+| **GigE Vision Stream Parameters**        |                                                                                        |                                  |                     |
+| ```AnswerTimeout```                      | Time the GigE Vision Device can take for command response.                             | ```1000```                       |                     |
+| ```CommandRetryCount```                  | Command attempts before it is considered as failed                                     | ```3```                          |                     |
+| ```MaximumPendingResends```              | Maximum number of packets in a block that can be missing                               | ```512```                        |                     |
+| ```MaximumResendRequestRetryByPacket```  | The maximum number of times a resend request can be issued.                            | ```3```                          |                     |
+| ```MaximumResendGroupSize```             | Maximum number of packets to resend at once                                            | ```15```                         |                     |
+| ```ResendRequestTimeout```               | Timeout for resend requests in (us)                                                    | ```5000```                       |                     |
+| ```RequestTimeout```                     | Maximum time that the data receiver waits for all the packets of a block (ms)          | ```1000```                       |                     |
+| ```ResetOnIdle```                        | Time without packets before resetting itself                                           | ```200```                        |                     |
+| ```Timeout```                            | Buffer reception timeout in (ms)                                                       | ```5000```                       |                     |
 
 
 (*) Choose a reasonable resolution and frame rate for your network, otherwise the camera may drop frames. 
@@ -107,9 +138,57 @@ ros2 run image_view image_view --ros-args --remap /image:=/image_color_1
 ```
 bottlenose_camera_driver
  |
- +-- camera_image_color      : Color image stream of Bottlenose camera (in case of Stereo of the left sensor)
- +-- camera_image_color_1    : Color image stream of Bottlenose camera (in case of Stereo of the right sensor, not supported for Mono models)
+ +-- image_color      : Color image stream of Bottlenose camera (in case of Stereo of the left sensor)
+ +-- image_color_1    : Color image stream of Bottlenose camera (in case of Stereo of the right sensor, not supported for Mono models)
+ +-- detections       : Detections2D array of detected features in left (image_color) or mono sensor
+ +-- features         : ImageMarker2D array of detected features in left (image_color) or mono sensor
+ +-- features_1       : ImageMarker2D array of detected features in right (image_color_1) sensor (Bottlenose Stereo only)
+ +-- pointcloud       : PointCloud2 messages of sparse triangulated feature points (Bottlenose Stereo only)
 ```
+
+### Feature Point example
+```bash
+ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args \
+    -p mac_address:="<MAC>" \ 
+    -p stereo:=true \
+    -p feature_points:=fast9 \
+    -p features_threshold:=10
+```
+ * Enable stereo processing and set the feature point type to ```fast9``` with a confidence threshold of ```10```
+ * You can use [Foxglove studio](https://foxglove.dev/) to visualize the makers in the image
+
+### Point Cloud example (Stereo Only)
+
+Point cloud detection relies on matching feature points across the two image sensors. Bottlenose uses AKAZE descriptors
+internally to describe feature points. The point cloud hence is very sensitive to the feature point detection parameters 
+from the previous example. You have to set the desired feature point parameters, enable sparse point matching, and
+set the parameters of the AKAZE matcher (shown above as ***Sparse Point Cloud Controls***).
+
+```bash
+ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args \
+    -p mac_address:="<MAC>" \ 
+    -p stereo:=true \
+    -p feature_points:=fast9 \
+    -p features_threshold:=10
+    -p sparse_point_cloud:=true \
+    -p AKAZELength:=486 \
+    -p AKAZEWindow:=20
+```
+ * Enable stereo processing
+ * Enable sparse point cloud output
+ * Set the AKAZE descriptor length to ```486``` bits and the window size to ```20x20```
+
+### AI example
+```bash
+ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args \
+  -p mac_address:="<MAC>" \ 
+  -p ai_model:=<absolute_path>yolov3_1_416_416_3.tar \
+  -p DNNConfidence:=0.01 
+```
+* Enable AI detections on Bottlenose using the yolov3 model with a confidence threshold of ```0.01``` 
+  (see [our models](https://github.com/labforge/models)).
+* You can use [Detection Visualizer](https://github.com/labforge/ros2_detection_visualizer) to annotate the images with 
+  the detections and subscribe to the annotated images in [Foxglove studio](https://foxglove.dev/) 
 
 ### Save topics in a bag
 ```
