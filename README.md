@@ -150,8 +150,8 @@ bottlenose_camera_driver
 
 Bottlenose can rectify and undistort the images on sensor using calibration files. Please see 
 [our documentation](https://docs.labforge.ca/docs/3d-modules#calibration-data-acquisition) for more information on 
-how to calibrate Bottlenose. Depending on your setup and lens configuration, you may need to calibrate the camera and 
-update the following files that we provide as samples:
+how to calibrate Bottlenose. Because the lens of Bottlenose is customer installed you have to calibrate Bottlenose 
+to properly undistort and rectify images. 
  * [Configuration for Bottlenose Mono](config/camera.yaml)
  * [Left sensor (0) for Bottlenose Stereo](config/left_camera.yaml)
  * [Right sensor (1) for Bottlenose Stereo](config/right_camera.yaml)
@@ -163,9 +163,7 @@ where the sensors are not perfectly aligned. The following parameters can be use
 
 If you used non-default offsets during your calibration process you have to set these parameters to the same
 values as during your calibration.
-
-If you do not wish to undistort or rectify the images, you can set the parameters ```image_width``` or ```image_height``` 
-to ```0``` in the configration files.
+If you do not wish to undistort or rectify the images, you can erase these files from your installation.
 
 **Note: For using the pointcloud feature or dense depth you have to have a valid calibration file that matches your setup.** 
 
