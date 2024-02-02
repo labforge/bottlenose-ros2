@@ -157,6 +157,14 @@ following files that we provide as samples:
  * [Left sensor (0) for Bottlenose Stereo](config/left_camera.yaml)
  * [Right sensor (0) for Bottlenose Stereo](config/right_camera.yaml)
 
+Further Bottlenose supports offsetting the readout pixel start position in each sensor. This is useful for stereo setups
+where the sensors are not perfectly aligned. The following parameters can be used to offset the readout position:
+ * ```OffsetX``` and ```OffsetY``` for the left sensor (0)
+ * ```OffsetX1``` and ```OffsetY1``` for the right sensor (1) (Stereo only)
+
+If you used non-default offsets during your calibration file you have to set these parameters to the same
+values as during your calibration.
+
 If you wish to not use the calibration feature of Bottlenose, you can erase the calibration files from your workspace,
 or set the parameters ```image_width``` or ```image_height``` to ```0``` in the configration files.
 
