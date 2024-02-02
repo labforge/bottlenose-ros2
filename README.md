@@ -155,7 +155,7 @@ Bottlenose. Depending on your setup and lens configuration, you may need to cali
 following files that we provide as samples:
  * [Configuration for Bottlenose Mono](config/camera.yaml)
  * [Left sensor (0) for Bottlenose Stereo](config/left_camera.yaml)
- * [Right sensor (0) for Bottlenose Stereo](config/right_camera.yaml)
+ * [Right sensor (1) for Bottlenose Stereo](config/right_camera.yaml)
 
 Further Bottlenose supports offsetting the readout pixel start position in each sensor. This is useful for stereo setups
 where the sensors are not perfectly aligned. The following parameters can be used to offset the readout position:
