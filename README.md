@@ -146,12 +146,12 @@ bottlenose_camera_driver
  +-- pointcloud       : PointCloud2 messages of sparse triangulated feature points (Bottlenose Stereo only)
 ```
 
-### Camera Calibration
+### On-Camera Rectification and Undistortion
 
 Bottlenose can rectify and undistort the images on sensor using calibration files. Please see 
 [our documentation](https://docs.labforge.ca/docs/3d-modules#calibration-data-acquisition) for more information on 
-how to calibrate Bottlenose. Because the lens of Bottlenose is customer installed you have to calibrate Bottlenose 
-to properly undistort and rectify images. 
+how to calibrate Bottlenose. Because the lens of Bottlenose is customer installed, you have to calibrate Bottlenose 
+to properly undistort and rectify images. We provide sample calibration files for the following configurations:
  * [Configuration for Bottlenose Mono](config/camera.yaml)
  * [Left sensor (0) for Bottlenose Stereo](config/left_camera.yaml)
  * [Right sensor (1) for Bottlenose Stereo](config/right_camera.yaml)
