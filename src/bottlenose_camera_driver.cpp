@@ -1657,33 +1657,38 @@ bool CameraDriver::set_calibration(){
       }      
     }
 
-
     if(set_register("saveCalibrationData", true)){
       RCLCPP_DEBUG(get_logger(), "Calibration committed");
-      if(num_sensors == 2) {
-        if(!get_parameter("sparse_point_cloud").as_bool()) { // Special handling, if we have 3d points decoded, we cannot rectify the images
-          m_calibrated = set_register("Undistortion", true);
-          if(!m_calibrated){
-            RCLCPP_ERROR(get_logger(), "Failed to trigger Undistortion mode on camera.");
-            return false;
-          }
-          if(!set_register("Rectification", true)) {
-            RCLCPP_ERROR(get_logger(), "Failed to trigger Rectification mode on camera.");
-            return m_calibrated;
-          }
-          RCLCPP_DEBUG(get_logger(), "Rectification enabled");
-        } else { // Do not undistort or rectify for sparse point cloud, but delcare calibrated if we have a valid calibration
-          m_calibrated = set_register("Undistortion", false);
-          if(!m_calibrated){
-            RCLCPP_ERROR(get_logger(), "Failed to trigger Undistortion mode on camera.");
-            return false;
-          }
-          if(!set_register("Rectification", false)) {
-            RCLCPP_ERROR(get_logger(), "Failed to disable Rectification mode on camera.");
-            return false;
-          }
-          RCLCPP_DEBUG(get_logger(), "Rectification disabled");
+      if((num_sensors == 2) && get_parameter("sparse_point_cloud").as_bool()) {
+        m_calibrated = set_register("Undistortion", false);
+        if(!m_calibrated){
+          RCLCPP_ERROR(get_logger(), "Failed to trigger Undistortion mode on camera.");
+          return false;
         }
+        if(!set_register("Rectification", false)) {
+          RCLCPP_ERROR(get_logger(), "Failed to disable Rectification mode on camera.");
+          return false;
+        }
+        RCLCPP_DEBUG(get_logger(), "Rectification & undistortion disabled");
+      }
+      else if(num_sensors == 2) {
+        m_calibrated = set_register("Undistortion", true);
+        if(!m_calibrated){
+          RCLCPP_ERROR(get_logger(), "Failed to trigger Undistortion mode on camera.");
+          return false;
+        }
+        if(!set_register("Rectification", true)) {
+          RCLCPP_ERROR(get_logger(), "Failed to trigger Rectification mode on camera.");
+          return false;
+        }
+        RCLCPP_DEBUG(get_logger(), "Rectification & undistortion enabled");
+      } else {
+        m_calibrated = set_register("Undistortion", true);
+        if (!m_calibrated) {
+          RCLCPP_ERROR(get_logger(), "Failed to trigger Undistortion mode on camera.");
+          return false;
+        }
+        RCLCPP_DEBUG(get_logger(), "Undistortion enabled");
       }
     } else{
       RCLCPP_ERROR(get_logger(), "Failed to trigger calibration mode on camera.");
