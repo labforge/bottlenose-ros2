@@ -234,6 +234,40 @@ bool chunkDecodePointCloud(PvBuffer *buffer, pointcloud_t &pointcloud) {
   return true;
 }
 
+size_t validMatches(const matches_t &matches) {
+  size_t count = 0;
+  for (size_t i = 0; i < matches.count; ++i) {
+    if (matches.points[i].x != matches.unmatched) {
+      count++;
+    }
+  }
+  return count;
+}
+
+bool chunkDecodeMatches(PvBuffer *buffer, matches_t &matches) {
+  uint8_t *data = getChunkRawData(buffer, CHUNK_ID_MATCHES);
+  if(data == nullptr) return false;
+
+  bzero(&matches, sizeof(matches_t));
+
+  matches.count = uintFromBytes(data, 4, true);
+  matches.layout = uintFromBytes(&data[4], 4, true);
+  matches.unmatched = uintFromBytes(&data[8], 4, true);
+
+  uint32_t offset = 3 * sizeof(uint32_t);
+  if(matches.layout < 2){
+    point_u16_t *points = (point_u16_t*)&data[offset];
+    for(uint32_t i = 0; i < matches.count; ++i){
+      matches.points[i].x = points[i].x;
+      matches.points[i].y = points[i].y;
+    }
+  } else {
+    memcpy(matches.points, &data[offset], sizeof(hamat_matches_8xu16_t) * matches.count);
+  }
+
+  return true;
+}
+
 std::string ms_to_date_string(uint64_t ms) {
   // Convert milliseconds to seconds
   std::chrono::seconds seconds(ms / 1000);

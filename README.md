@@ -182,6 +182,7 @@ bottlenose_camera_driver
  +-- features         : ImageMarker2D array of detected features in left (image_color) or mono sensor
  +-- features_1       : ImageMarker2D array of detected features in right (image_color_1) sensor (Bottlenose Stereo only)
  +-- pointcloud       : PointCloud2 messages of sparse triangulated feature points (Bottlenose Stereo only)
+ +-- matches          : PointCloud2 messages of sensor 0 to sensor 1 match coordinates with quality metrics (Bottlenose Stereo only)
 ```
 
 ### On-Camera Rectification and Undistortion
@@ -312,6 +313,14 @@ The driver will attempt to stream from the sensor using the standard Linux netwo
 
 Workaround:
   * Please make sure you **do not** install Linux with ***Secure Boot*** or ***UEFI*** enabled.
+```bash
+# You can check if secureboot is enabled with
+mokutil --sb
+# Expected output
+#SecureBoot disabled
+#Platform is in Setup Mode
+# ... if your result is different you likely have secureboot enabled
+```
   * Please reinstall the ***eBus SDK*** Debian package (see above) such that the kernel driver is reinstalled after every kernel update
   * On Ubuntu 22.04, ensure you are running Kernel 5.19 or older, ***Kernel 6.x*** will not install the eBUS driver correctly
 
