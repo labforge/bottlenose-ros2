@@ -7,14 +7,53 @@ This driver currently supports color-image streaming from Bottlenose Mono and St
 ## Requirements 
   * ROS2 Foxy or newer:
     * tested with [ROS2 Foxy](https://docs.ros.org/en/foxy/Releases/Release-Foxy-Fitzroy.html) on Ubuntu 20.04
-    * tested with [ROS2 Humble](https://docs.ros.org/en/foxy/Releases/Release-Humble-Hawksbill.html) on Ubuntu 22.04 (up to Kernel 5.19, Kernel 6.x or newer support is experimental)
+    * tested with [ROS2 Humble](https://docs.ros.org/en/foxy/Releases/Release-Humble-Hawksbill.html) on Ubuntu 22.04 (up to **Kernel 5.19**, ***Kernel 6.x or newer support is experimental***)
   * eBUS SDK 6.3, please see the releases in our [SDK Demos](https://github.com/labforge/sdk-demos/releases)
   * Bottlenose Mono or Stereo Camera, at [firmware](https://github.com/labforge/bottlenose/releases/) v0.1.100 or newer
 
 ## Building and Installing
-
- * Set up your [ros2 workspace](https://docs.ros.org/en/humble/Tutorials/Beginner-Client-Libraries/Creating-A-Workspace/Creating-A-Workspace.html)
- * Clone this repository into the workspace
+ * Install the eBUS SDK 6.3, please see the releases in our [SDK Demos](https://github.com/labforge/sdk-demos/releases)
+ * Install your [ROS2 Foxy](https://docs.ros.org/en/foxy/Installation.html) or [ROS2 Humble](https://docs.ros.org/en/humble/Installation.html) environment
+ * Set up your [ROS2 Foxy](https://docs.ros.org/en/foxy/Tutorials/Beginner-Client-Libraries/Creating-A-Workspace/Creating-A-Workspace.html) or [ROS2 Humble workspace](https://docs.ros.org/en/humble/Tutorials/Beginner-Client-Libraries/Creating-A-Workspace/Creating-A-Workspace.html)
+ * Clone this repository into the workspaces' ```src``` directory
+ * Source the Genicam environment variables from your eBUS installation or add them to `.bashrc`
+```bash
+source /opt/pleora/ebus_sdk/Ubuntu-{20.04,22.04}-x86_64/bin/set_puregev_env.sh
+```
+ * Install the dependencies, replace ```{foxy,humble}``` with your ROS2 distribution
+```bash
+# Install the dependencies
+source /opt/ros/{foxy,humble}/setup.sh
+rosdep update --include-eol-distros
+rosdep install -i --from-path src --rosdistro {foxy,humble} -y
+```
+   * ***If this fails*** you can manually install the required dependencies via ```apt``` as follows
+```bash
+sudo apt install ros-{foxy,humble}-cv-bridge \
+     ros-{foxy,humble}-rclcpp-bridge \
+     ros-{foxy,humble}-rclcpp-components \
+     ros-{foxy,humble}-std-msgs \
+     ros-{foxy,humble}-sensor-msgs \
+     ros-{foxy,humble}-vision-msgs \
+     ros-{foxy,humble}-visualization-msgs \
+     ros-{foxy,humble}-image-transport \
+     ros-{foxy,humble}-camera-calibration-parsers \
+     ros-{foxy,humble}-camera-info-manager \
+     ros-{foxy,humble}-launch-ros \
+     ros-{foxy,humble}-image-transport \
+     ros-{foxy,humble}-image-transport-plugins \
+     ros-{foxy,humble}-image-view \
+     build-essential libopencv-dev locales \
+     software-properties-common \ 
+     curl \
+     libcurl4-openssl-dev \ 
+     libopencv-dev
+```
+ * Reload the environment to reflect the dependency change
+```
+source /opt/ros/{foxy,humble}/setup.sh
+source install/local_setup.bash
+```
  * Build and install with ```colcon```
 ```
 # Build and install all workspace nodes
@@ -36,7 +75,6 @@ ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p ma
 
 ```
    * To run in Mono mode, set the parameter ```-p stereo:=false```   
-
 
   * Alternatively, a launch file can be used. 
   ```
