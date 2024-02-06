@@ -313,6 +313,7 @@ The driver will attempt to stream from the sensor using the standard Linux netwo
 Workaround:
   * Please make sure you **do not** install Linux with ***Secure Boot*** or ***UEFI*** enabled.
   * Please reinstall the ***eBus SDK*** Debian package (see above) such that the kernel driver is reinstalled after every kernel update
+  * On Ubuntu 22.04, ensure you are running Kernel 5.19 or older, ***Kernel 6.x*** will not install the eBUS driver correctly
 
 
 ## References
