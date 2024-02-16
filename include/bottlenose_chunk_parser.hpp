@@ -49,6 +49,27 @@ typedef struct point_u16 {
 } point_u16_t;
 
 /**
+ * @brief Chunk data representation of point matches.
+ */
+typedef struct hamat_matches_8xu16 {
+  uint16_t x; ///< x coordinate or index of the first point
+  uint16_t y; ///< y coordinate of the first point
+  uint16_t x2; ///< x coordinate or index of the second point
+  uint16_t y2; ///< y coordinate of the second point
+  uint16_t d2; ///< next minimum distance
+  uint16_t d1; ///< first minimum distance
+  uint16_t n2; ///< number of reference points that calculated the second Hamming distance
+  uint16_t n1; ///< number of reference points that calculated the first Hamming distance
+} hamat_matches_8xu16_t;
+
+typedef struct __attribute__((packed, aligned(4))) {
+  uint32_t count;
+  uint32_t layout;
+  uint32_t unmatched;
+  hamat_matches_8xu16_t points[MAX_KEYPOINTS];
+} matches_t;
+
+/**
  * @brief Chunk data a 3-dimensional coordinate.
  */
 typedef struct vector3f {
@@ -151,6 +172,21 @@ bool chunkDecodeBoundingBoxes(PvBuffer *buffer, bboxes_t &bboxes);
  * @return true if present, false if not present or corrupted.
  */
 bool chunkDecodePointCloud(PvBuffer *buffer, pointcloud_t &pointcloud);
+
+/**
+ * Decode matches from image stream, if present.
+ * @param buffer Buffer received on GEV interface
+ * @param matches Decoded matches
+ * @return true if present, false if not present or corrupted.
+ */
+bool chunkDecodeMatches(PvBuffer *buffer, matches_t &matches);
+
+/**
+ * Count the number of valid matches in the matches structure.
+ * @param matches Decoded matches
+ * @return Number of valid matches
+ */
+size_t validMatches(const matches_t &matches);
 
 std::string ms_to_date_string(uint64_t ms);
 

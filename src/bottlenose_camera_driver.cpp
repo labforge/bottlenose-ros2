@@ -145,6 +145,8 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options)
 
   m_pointcloud = create_publisher<sensor_msgs::msg::PointCloud2>("pointcloud", 10);
 
+  m_matches = create_publisher<sensor_msgs::msg::PointCloud2>("matches", 10);
+
   if(!is_ebus_loaded()) {
     RCLCPP_ERROR(get_logger(), "The eBus Driver is not loaded, please reinstall the driver!");
   }
@@ -873,6 +875,7 @@ void CameraDriver::management_thread() {
         bboxes_t bboxes = {};
         uint64_t timestamp = 0;
         pointcloud_t point_cloud = {};
+        matches_t matches = {};
         switch ( buffer->GetPayloadType() ) {
           case PvPayloadTypeImage:
             img0 = buffer->GetImage();
@@ -892,6 +895,9 @@ void CameraDriver::management_thread() {
             }
             if(chunkDecodePointCloud(buffer, point_cloud)) {
               this->publish_pointcloud(point_cloud, timestamp);
+            }
+            if(chunkDecodeMatches(buffer, matches)) {
+              this->publish_matches(matches, timestamp);
             }
             m_image_msg = convertFrameToMessage(img0, timestamp);
 
@@ -931,6 +937,9 @@ void CameraDriver::management_thread() {
             }
             if(chunkDecodePointCloud(buffer, point_cloud)) {
               this->publish_pointcloud(point_cloud, timestamp);
+            }
+            if(chunkDecodeMatches(buffer, matches)) {
+              this->publish_matches(matches, timestamp);
             }
             m_image_msg = convertFrameToMessage(img0, timestamp);
             m_image_msg_1 = convertFrameToMessage(img1, timestamp);
@@ -1037,30 +1046,18 @@ void CameraDriver::publish_bboxes(const bboxes_t &bboxes, const uint64_t &timest
 void CameraDriver::publish_pointcloud(const pointcloud_t &pointcloud, const uint64_t &timestamp) {
   auto ts = convertTimestamp(timestamp);
 
-  sensor_msgs::msg::PointField x_field;
-  x_field.name = "x";
-  x_field.offset = 0; // Assuming 'x' is the first field, so offset is 0
-  x_field.datatype = sensor_msgs::msg::PointField::FLOAT32;
-  x_field.count = 1; // Typically, each coordinate is just one element
-
-
-  sensor_msgs::msg::PointField y_field;
-  y_field.name = "y";
-  y_field.offset = 4; // Assuming 'x' is 4 bytes, 'y' starts after 'x'
-  y_field.datatype = sensor_msgs::msg::PointField::FLOAT32;
-  y_field.count = 1;
-
-  sensor_msgs::msg::PointField z_field;
-  z_field.name = "z";
-  z_field.offset = 8; // Assuming 'x' and 'y' are 4 bytes each, 'z' starts after 'y'
-  z_field.datatype = sensor_msgs::msg::PointField::FLOAT32;
-  z_field.count = 1;
-
   sensor_msgs::msg::PointCloud2 msg;
-  // Define fields
-  msg.fields.push_back(x_field);
-  msg.fields.push_back(y_field);
-  msg.fields.push_back(z_field);
+  size_t offset = 0;
+  for(auto name : {"x", "y", "z"}) {
+    sensor_msgs::msg::PointField field;
+    field.name = name;
+    field.offset = offset; // Assuming 'x' is the first field, so offset is 0
+    field.datatype = sensor_msgs::msg::PointField::FLOAT32;
+    field.count = 1; // Typically, each coordinate is just one element
+    offset += sizeof(float);
+    msg.fields.push_back(field);
+  }
+
   // Set other necessary fields
   msg.height = 1;  // If your cloud is unordered, height is 1
   msg.width = pointcloud.count;  // Number of points in the cloud
@@ -1074,16 +1071,53 @@ void CameraDriver::publish_pointcloud(const pointcloud_t &pointcloud, const uint
 
   for(size_t i = 0; i < pointcloud.count; i++) {
     // Copy data into cloud_msg.data
-    std::memcpy(&msg.data[i * msg.point_step + x_field.offset], &pointcloud.points[i].x, sizeof(float));
-    std::memcpy(&msg.data[i * msg.point_step + y_field.offset], &pointcloud.points[i].y, sizeof(float));
-    std::memcpy(&msg.data[i * msg.point_step + z_field.offset], &pointcloud.points[i].z, sizeof(float));
-//    std::memcpy(&msg.data[i * msg.point_step + intensity_field.offset], &intensity, sizeof(float));
+    std::memcpy(&msg.data[i * msg.point_step + 0], &pointcloud.points[i].x, sizeof(float));
+    std::memcpy(&msg.data[i * msg.point_step + sizeof(float)], &pointcloud.points[i].y, sizeof(float));
+    std::memcpy(&msg.data[i * msg.point_step + sizeof(float)*2], &pointcloud.points[i].z, sizeof(float));
   }
   msg.header.frame_id = this->get_parameter("frame_id").as_string();
   msg.header.stamp.sec = ts.first;
   msg.header.stamp.nanosec = ts.second;
   m_pointcloud->publish(msg);
   RCLCPP_DEBUG(get_logger(), "Decoded point cloud with %u points", pointcloud.count);
+}
+
+void CameraDriver::publish_matches(const matches_t &matches, const uint64_t &timestamp) {
+  auto ts = convertTimestamp(timestamp);
+
+  size_t offset = 0;
+  sensor_msgs::msg::PointCloud2 msg;
+  for(auto name : {"x", "y", "x1", "y1", "d2", "d1", "n2", "n1"}) {
+    sensor_msgs::msg::PointField field;
+    field.name = name;
+    field.offset = offset; // Assuming 'x' is the first field, so offset is 0
+    field.datatype = sensor_msgs::msg::PointField::UINT16;
+    field.count = 1; // Typically, each coordinate is just one element
+    offset+=sizeof(uint16_t);
+    // Define fields
+    msg.fields.push_back(field);
+  }
+  assert(offset == sizeof(hamat_matches_8xu16));
+  msg.height = 1;  // If your cloud is unordered, height is 1
+  msg.width = validMatches(matches);
+  // Point step is the size of a point in bytes
+  msg.point_step = offset;
+  msg.row_step = msg.point_step * msg.width; // Row step is point step times the width
+  msg.is_dense = false;  // If there are no invalid (NaN, Inf) points, set to true
+  msg.data.resize(msg.row_step * msg.height);
+
+  size_t valid_out = 0;
+  for(size_t i = 0; i < matches.count; i++) {
+    if(matches.points[i].x != matches.unmatched) {
+      std::memcpy(&msg.data[valid_out * msg.point_step], &matches.points[i], offset);
+      valid_out++;
+    }
+  }
+  msg.header.frame_id = this->get_parameter("frame_id").as_string();
+  msg.header.stamp.sec = ts.first;
+  msg.header.stamp.nanosec = ts.second;
+  m_matches->publish(msg);
+  RCLCPP_DEBUG(get_logger(), "Decoded %lu valid matches", valid_out);
 }
 
 bool CameraDriver::is_streaming() {
@@ -1245,6 +1279,16 @@ bool CameraDriver::configure_point_cloud() {
         RCLCPP_ERROR(get_logger(), "Could not configure %s", value);
         return false;
       }
+    }
+    // Force detailed matching metrics
+    if(!set_enum_register("HAMATOutputFormat", "Coordinate Detailed")) {
+      RCLCPP_ERROR(get_logger(), "Could not configure HAMATOutputFormat");
+      return false;
+    }
+    // Enable matches chunk for debugging
+    if(!set_chunk("FeatureMatches", enabled)) {
+      RCLCPP_ERROR(get_logger(), "Could not enable feature FeatureMatches chunk");
+      return false;
     }
   }
   RCLCPP_DEBUG_STREAM(get_logger(), "Sparse point cloud configured to " << enabled);

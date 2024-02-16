@@ -80,6 +80,7 @@ namespace bottlenose_camera_driver {
     void publish_features(const std::vector<keypoints_t> &features, const uint64_t &timestamp); ///< Publish keypoints
     void publish_bboxes(const bboxes_t &bboxes, const uint64_t &timestamp); ///< Publish bounding boxes
     void publish_pointcloud(const pointcloud_t &pointcloud, const uint64_t &timestamp); ///< Publish point cloud
+    void publish_matches(const matches_t &matches, const uint64_t &timestamp); ///< Publish matches
     void management_thread();             ///< Management thread for interacting with GEV stack.
     void status_callback();               ///< ROS2 status callback and orchestration polled from a timer.
     static bool is_ebus_loaded();         ///< Check if the eBusSDK Driver is loaded.
@@ -135,6 +136,9 @@ namespace bottlenose_camera_driver {
 
     // Triangulated point-cloud publisher.
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr m_pointcloud;
+
+    // Matches publisher.
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr m_matches;
 };
 } // namespace bottlenose_camera_driver
 #endif //__BOTTLENOSE_CAMERA_DRIVER_HPP__
