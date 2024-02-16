@@ -105,7 +105,7 @@ jobs:
         with:
           repository: "labforge/bottlenose"
           latest: true
-          fileName: "firmware-bottlenose.tar"
+          fileName: "firmware-bottlenose*.tar"
           tarBall: false
           zipBall: false
           out-file-path: "firmware"
@@ -127,7 +127,7 @@ jobs:
           source venv/bin/activate
           pip install -r requirements.txt
           source /opt/pleora/ebus_sdk/Ubuntu-22.04-x86_64/bin/set_puregev_env.sh
-          python uploader.py -t firmware -i "$(</tmp/bottlenose.ip)" -f ./../../firmware/firmware-bottlenose.tar
+          python uploader.py -t firmware -i "$(</tmp/bottlenose.ip)" -f ./../../firmware/firmware-bottlenose*.tar
 
       - name: Power off CI for testing
         uses: ./.github/workflows/ci/power
