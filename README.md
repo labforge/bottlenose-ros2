@@ -156,6 +156,10 @@ ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p ma
 | ```ResendRequestTimeout```               | Timeout for resend requests in (us)                                                    | ```5000```                       |                     |
 | ```RequestTimeout```                     | Maximum time that the data receiver waits for all the packets of a block (ms)          | ```1000```                       |                     |
 | ```ResetOnIdle```                        | Time without packets before resetting itself                                           | ```200```                        |                     |
+| ```RequestMissingPackets```              | If enabled, missing packets are requested.                                             | ```true```                       |                     |
+| ```ResendDelay```                        | Delay between resend requests in (us)                                                  | ```0```                          |                     |
+| ```GevSCPSPacketSize```                  | Maximum packet size in bytes for GigE Vision stream (0 = auto negotiate)               | ```0```                          |                     |
+| ```GevSCPD```                            | Delay between packets in (ns) for GigE Vision stream                                   | ```0```                          |                     |
 | ```Timeout```                            | Buffer reception timeout in (ms)                                                       | ```5000```                       |                     |
 
 

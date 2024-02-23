@@ -626,12 +626,6 @@ bool CameraDriver::connect() {
     return false;
   }
   PvGenInteger *intval = dynamic_cast<PvGenInteger *>( device->GetParameters()->Get("GevSCPSPacketSize"));
-  assert(intval != nullptr);
-  int64_t val;
-  intval->GetValue(val);
-  if(val < 8000) {
-    RCLCPP_WARN(get_logger(), "Current MTU is %ld, please set to at least 8K for reliable image transfer", val);
-  }
   PvStream *stream = PvStream::CreateAndOpen( pDevice->GetConnectionID(), &res );
   if(res.IsFailure() || stream == nullptr) {
     RCLCPP_ERROR(get_logger(), "Could not open device %s, cause %s", m_mac_address.c_str(), res.GetCodeString().GetAscii());
@@ -651,6 +645,29 @@ bool CameraDriver::connect() {
     disconnect();
     return false;
   }
+  // Check if packet size should be adjusted manually
+  if(get_parameter("GevSCPSPacketSize").as_int() > 0) {
+    res = intval->SetValue(get_parameter("GevSCPSPacketSize").as_int());
+    if(res.IsFailure()) {
+      RCLCPP_ERROR_STREAM(get_logger(), "Could not set packet size to " << get_parameter("GevSCPSPacketSize").as_int() << " cause " << res.GetDescription().GetAscii());
+      disconnect();
+      return false;
+    }
+    RCLCPP_DEBUG_STREAM(get_logger(), "Set packet size to " << get_parameter("GevSCPSPacketSize").as_int());
+  } else {
+    int64_t val;
+    intval->GetValue(val);
+    RCLCPP_DEBUG_STREAM(get_logger(), "Using auto negotiated packet size of " << val << " bytes");
+  }
+  // Adjust inter-packet delay as needed
+  intval = static_cast<PvGenInteger *>( device->GetParameters()->Get("GevSCPD"));
+  res = intval->SetValue(get_parameter("GevSCPD").as_int());
+  if(res.IsFailure()) {
+    RCLCPP_ERROR_STREAM(get_logger(), "Could not set inter-packet delay to " << get_parameter("GevSCPD").as_int() << " cause " << res.GetDescription().GetAscii());
+    disconnect();
+    return false;
+  }
+  RCLCPP_DEBUG(get_logger(), "Set inter-packet delay to %ld", get_parameter("GevSCPD").as_int());
   res = m_device->SetStreamDestination( m_stream->GetLocalIPAddress(), m_stream->GetLocalPort() );
   if(res.IsFailure()) {
     RCLCPP_ERROR(get_logger(), "Could not set stream destination to localhost");
@@ -676,15 +693,23 @@ bool CameraDriver::connect() {
                            "MaximumResendRequestRetryByPacket",
                            "MaximumResendGroupSize",
                            "ResendRequestTimeout",
-                           "RequestTimeout"}) {
+                           "RequestTimeout",
+                           "ResendDelay"}) {
     intval = static_cast<PvGenInteger *>( stream->GetParameters()->Get(param));
     res = intval->SetValue(get_parameter(param).as_int());
     if (res.IsFailure()) {
-      RCLCPP_ERROR(get_logger(), "Could not adjust communication parameters");
+      RCLCPP_ERROR_STREAM(get_logger(), "Could not adjust communication parameter" << param << " to " << get_parameter(param).as_int() << " cause " << res.GetDescription().GetAscii());
       disconnect();
       return false;
     }
     RCLCPP_DEBUG_STREAM(get_logger(), "Set " << param << " to " << get_parameter(param).as_int());
+  }
+  PvGenBoolean *boolval = static_cast<PvGenBoolean *>( stream->GetParameters()->Get("RequestMissingPackets"));
+  res = boolval->SetValue(get_parameter("RequestMissingPackets").as_bool());
+  if (res.IsFailure()) {
+    RCLCPP_ERROR(get_logger(), "Could not adjust RequestMissingPackets parameter");
+    disconnect();
+    return false;
   }
 
   return true;
