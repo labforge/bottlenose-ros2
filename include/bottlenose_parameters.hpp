@@ -79,6 +79,11 @@ const parameter_t bottlenose_parameters[] = {
   {"ResendRequestTimeout", rclcpp::ParameterValue(5000)},
   {"RequestTimeout", rclcpp::ParameterValue(1000)},
   {"ResetOnIdle", rclcpp::ParameterValue(200)},
+  {"RequestMissingPackets", rclcpp::ParameterValue(true)},
+  {"ResendDelay", rclcpp::ParameterValue(0)}, // us
+  {"GevSCPSPacketSize", rclcpp::ParameterValue(0)}, // 0 = Auto
+  {"GevSCPD", rclcpp::ParameterValue(0)}, // ns
+
 
   /* Calibration file parameters */
   {"camera_calibration_file", rclcpp::ParameterValue("")},
