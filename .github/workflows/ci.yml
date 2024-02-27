@@ -63,7 +63,10 @@ jobs:
           source install/local_setup.sh
           source /opt/pleora/ebus_sdk/Ubuntu-22.04-x86_64/bin/set_puregev_env.sh
           cd driver
-          colcon test
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install -r test_requirements.txt
+          colcon test --rerun-failed --output-on-failure --event-handlers console_direct+
           colcon test-result
           cd ..
 
@@ -181,7 +184,7 @@ jobs:
           run: |
             sudo apt-get update
             sudo apt-get install -y build-essential libopencv-dev locales \
-              software-properties-common curl libcurl4-openssl-dev 
+              software-properties-common curl libcurl4-openssl-dev python3-venv python3-pip
             sudo locale-gen en_US en_US.UTF-8
             sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
             export LANG=en_US.UTF-8
@@ -219,6 +222,7 @@ jobs:
         - name: Build ros2 driver for foxy
           run: |
             cd driver
+            pip install -r test_requirements.txt
             source /opt/ros/foxy/setup.sh
             rosdep update --include-eol-distros 
             rosdep install -i --from-path . --rosdistro foxy -y
@@ -234,7 +238,7 @@ jobs:
             export _colcon_cd_root=$(pwd)
             source install/local_setup.sh
             source /opt/pleora/ebus_sdk/Ubuntu-20.04-x86_64/bin/set_puregev_env.sh
-            colcon test
+            colcon test --rerun-failed --output-on-failure --event-handlers console_direct+
             colcon test-result
             cd ..
         - name: Evaluate test results

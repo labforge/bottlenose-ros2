@@ -120,6 +120,13 @@ install(DIRECTORY
   DESTINATION share/${PROJECT_NAME}
 )
 
+# Lint
+find_program(CPPLINT cpplint)
+if(CPPLINT)
+    add_test(NAME cpplint_test COMMAND ${CPPLINT} --verbose=0 --recursive src include)
+    set_tests_properties(cpplint_test PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+endif()
+
 #if(BUILD_TESTING)
 #  find_package(ament_lint_auto REQUIRED)
 #  # the following line skips the linter which checks for copyrights

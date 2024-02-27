@@ -1375,13 +1375,16 @@ bool CameraDriver::configure_ai_model() {
       WAIT_PROPAGATE();
     }
     if(trials == 0) {
-      RCLCPP_ERROR(get_logger(), "Could not file transfer");
+      RCLCPP_ERROR(get_logger(), "Could not file transfer, last device status %s", modelStatus.GetAscii());
       return false;
     }
+    RCLCPP_DEBUG(get_logger(), "Model transfer initiated, last device status %s", modelStatus.GetAscii());
     filesystem::path fsPath(get_parameter("ai_model").as_string());
     string basename = fsPath.filename().string();
     string target = string("ftp://anonymous:@") + ipAddress + "/" + basename;
+    RCLCPP_DEBUG(get_logger(), "Transferring model to %s", target.c_str());
     if(!ftp_upload(target, get_parameter("ai_model").as_string())) {
+      RCLCPP_ERROR_STREAM(get_logger(), "Model transfer failed, for file " << get_parameter("ai_model").as_string() << " file exists: " << filesystem::path(basename));
       return false;
     }
     trials = 10;
@@ -1398,7 +1401,7 @@ bool CameraDriver::configure_ai_model() {
       usleep(100000);
     }
     if(trials == 0) {
-      RCLCPP_ERROR(get_logger(), "Could not initialize model");
+      RCLCPP_ERROR(get_logger(), "Could not initialize model, last status %s", modelStatus.GetAscii());
       return false;
     } else {
       RCLCPP_DEBUG(get_logger(), "Model loaded, last status %s", modelStatus.GetAscii());
