@@ -19,7 +19,11 @@
         G. M. Tchamgoue <martin@labforge.ca>  
 */
 
+#include <arpa/inet.h>  // For inet_ntoa
+#include <netinet/in.h> // For struct in_addr
+#include <sys/stat.h>
 #include <unistd.h>
+#include <curl/curl.h>
 #include <chrono>
 #include <memory>
 #include <utility>
@@ -27,23 +31,19 @@
 #include <cassert>
 #include <list>
 #include <filesystem>
-#include <fstream>
 #include <iostream>
-#include <arpa/inet.h>  // For inet_ntoa
-#include <netinet/in.h> // For struct in_addr
 
 #include <PvDevice.h>
 #include <PvStream.h>
 #include <PvSystem.h>
 #include <PvBuffer.h>
 #include <opencv2/opencv.hpp>
-#include <curl/curl.h>
+
 
 #include "bottlenose_camera_driver.hpp"
 #include "bottlenose_parameters.hpp"
 #include "bottlenose_chunk_parser.hpp"
 #include <ament_index_cpp/get_package_share_directory.hpp>
-#include <sys/stat.h>
 
 #define BUFFER_COUNT ( 16 )
 #define BUFFER_SIZE ( 3840 * 2160 * 3 ) // 4K UHD, YUV422 + ~1 image plane to account for chunk data
@@ -1375,13 +1375,16 @@ bool CameraDriver::configure_ai_model() {
       WAIT_PROPAGATE();
     }
     if(trials == 0) {
-      RCLCPP_ERROR(get_logger(), "Could not file transfer");
+      RCLCPP_ERROR(get_logger(), "Could not file transfer, last device status %s", modelStatus.GetAscii());
       return false;
     }
+    RCLCPP_DEBUG(get_logger(), "Model transfer initiated, last device status %s", modelStatus.GetAscii());
     filesystem::path fsPath(get_parameter("ai_model").as_string());
     string basename = fsPath.filename().string();
     string target = string("ftp://anonymous:@") + ipAddress + "/" + basename;
+    RCLCPP_DEBUG(get_logger(), "Transferring model to %s", target.c_str());
     if(!ftp_upload(target, get_parameter("ai_model").as_string())) {
+      RCLCPP_ERROR_STREAM(get_logger(), "Model transfer failed, for file " << get_parameter("ai_model").as_string() << " file exists: " << filesystem::path(basename));
       return false;
     }
     trials = 10;
@@ -1398,7 +1401,7 @@ bool CameraDriver::configure_ai_model() {
       usleep(100000);
     }
     if(trials == 0) {
-      RCLCPP_ERROR(get_logger(), "Could not initialize model");
+      RCLCPP_ERROR(get_logger(), "Could not initialize model, last status %s", modelStatus.GetAscii());
       return false;
     } else {
       RCLCPP_DEBUG(get_logger(), "Model loaded, last status %s", modelStatus.GetAscii());
@@ -1460,8 +1463,7 @@ bool CameraDriver::load_calibration(uint32_t sid, std::string cname){
       
   if(this->get_parameter(param).as_string().length() > 0) {
     kfile_param = this->get_parameter(param).as_string();        
-  }
-  else{
+  } else {
     std::string default_url = prefix + ament_index_cpp::get_package_share_directory(this->get_name()) + "/config/" + cname + ".yaml";
     this->set_parameter(rclcpp::Parameter(param, default_url));
     kfile_param = this->get_parameter(param).as_string();
@@ -1739,8 +1741,7 @@ bool CameraDriver::set_calibration(){
           return false;
         }
         RCLCPP_DEBUG(get_logger(), "Rectification & undistortion disabled");
-      }
-      else if(num_sensors == 2) {
+      } else if(num_sensors == 2) {
         m_calibrated = set_register("Undistortion", true);
         if(!m_calibrated){
           RCLCPP_ERROR(get_logger(), "Failed to trigger Undistortion mode on camera.");
