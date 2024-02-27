@@ -63,10 +63,7 @@ jobs:
           source install/local_setup.sh
           source /opt/pleora/ebus_sdk/Ubuntu-22.04-x86_64/bin/set_puregev_env.sh
           cd driver
-          python3 -m venv venv
-          source venv/bin/activate
-          pip install -r test_requirements.txt
-          colcon test --event-handlers console_direct+ --packages-select bottlenose_camera_driver --ctest-args -R cpplint_test --rerun-failed --output-on-failure
+          colcon test --event-handlers console_direct+
           colcon test-result
           cd ..
 
