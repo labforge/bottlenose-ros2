@@ -24,6 +24,10 @@
 #include <cstdio>
 #include <iostream>
 #include <variant>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+
 #include "rclcpp/rclcpp.hpp"
 
 #include "std_msgs/msg/string.hpp"
@@ -39,11 +43,9 @@
 #include <camera_info_manager/camera_info_manager.hpp>
 #include <image_transport/image_transport.hpp>
 
-#include "opencv2/highgui/highgui.hpp"
+#include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc.hpp>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
+
 #include <PvBuffer.h>
 #include <PvDeviceGEV.h>
 #include <PvStreamGEV.h>

@@ -20,9 +20,9 @@
 #ifndef __BOTTLENOSE_CHUNK_PARSER_HPP__
 #define __BOTTLENOSE_CHUNK_PARSER_HPP__
 
-#include <PvBuffer.h>
 #include <vector>
-#include <stdint.h>
+#include <cstdint>
+#include <PvBuffer.h>
 
 #define MAX_KEYPOINTS 0xFFFF
 #define MAX_BBOXES (100)
