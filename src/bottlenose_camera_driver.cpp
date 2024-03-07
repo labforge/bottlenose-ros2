@@ -145,7 +145,7 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions &node_options)
 
   m_pointcloud = create_publisher<sensor_msgs::msg::PointCloud2>("pointcloud", 10);
 
-  m_matches = create_publisher<sensor_msgs::msg::PointCloud2>("matches", 10);
+//  m_matches = create_publisher<sensor_msgs::msg::PointCloud2>("matches", 10);
 
   if(!is_ebus_loaded()) {
     RCLCPP_ERROR(get_logger(), "The eBus Driver is not loaded, please reinstall the driver!");
@@ -562,24 +562,29 @@ bool CameraDriver::set_ccm_custom() {
 }
 
 bool CameraDriver::set_stereo() {
-    // Ignore for bottlenose mono
-    if(!is_stereo()) {
-        return true;
+  // Ignore for bottlenose mono
+  if(!is_stereo()) {
+    if(get_parameter("stereo").as_bool()) {
+      RCLCPP_ERROR(get_logger(), "Stereo is not supported on this device");
+      return false;
+    } else {
+      return true;
     }
-    bool enable_stereo = get_parameter("stereo").as_bool();
-    PvGenBoolean *multipart = dynamic_cast<PvGenBoolean *>( m_device->GetParameters()->Get("GevSCCFGMultiPartEnabled"));
-    if(multipart == nullptr) {
-        RCLCPP_ERROR(get_logger(), "Could not configure stereo");
-        return false;
-    }
+  }
+  bool enable_stereo = get_parameter("stereo").as_bool();
+  PvGenBoolean *multipart = dynamic_cast<PvGenBoolean *>( m_device->GetParameters()->Get("GevSCCFGMultiPartEnabled"));
+  if(multipart == nullptr) {
+    RCLCPP_ERROR(get_logger(), "Could not configure stereo");
+    return false;
+  }
 
-    PvResult res = multipart->SetValue(enable_stereo);
-    if(!res.IsOK())
-        RCLCPP_ERROR_STREAM(get_logger(), "Could not configure stereo, cause: " << res.GetDescription().GetAscii());
-    else
-        RCLCPP_DEBUG_STREAM(get_logger(), "Configured stereo to " << enable_stereo);
+  PvResult res = multipart->SetValue(enable_stereo);
+  if(!res.IsOK())
+    RCLCPP_ERROR_STREAM(get_logger(), "Could not configure stereo, cause: " << res.GetDescription().GetAscii());
+  else
+    RCLCPP_DEBUG_STREAM(get_logger(), "Configured stereo to " << enable_stereo);
 
-    return res.IsOK();
+  return res.IsOK();
 }
 
 bool CameraDriver::set_auto_exposure() {
@@ -900,7 +905,7 @@ void CameraDriver::management_thread() {
         bboxes_t bboxes = {};
         uint64_t timestamp = 0;
         pointcloud_t point_cloud = {};
-        matches_t matches = {};
+//        matches_t matches = {};
         switch ( buffer->GetPayloadType() ) {
           case PvPayloadTypeImage:
             img0 = buffer->GetImage();
@@ -921,9 +926,9 @@ void CameraDriver::management_thread() {
             if(chunkDecodePointCloud(buffer, point_cloud)) {
               this->publish_pointcloud(point_cloud, timestamp);
             }
-            if(chunkDecodeMatches(buffer, matches)) {
-              this->publish_matches(matches, timestamp);
-            }
+//            if(chunkDecodeMatches(buffer, matches)) {
+//              this->publish_matches(matches, timestamp);
+//            }
             m_image_msg = convertFrameToMessage(img0, timestamp);
 
             if(m_image_msg != nullptr) {
@@ -963,9 +968,9 @@ void CameraDriver::management_thread() {
             if(chunkDecodePointCloud(buffer, point_cloud)) {
               this->publish_pointcloud(point_cloud, timestamp);
             }
-            if(chunkDecodeMatches(buffer, matches)) {
-              this->publish_matches(matches, timestamp);
-            }
+//            if(chunkDecodeMatches(buffer, matches)) {
+//              this->publish_matches(matches, timestamp);
+//            }
             m_image_msg = convertFrameToMessage(img0, timestamp);
             m_image_msg_1 = convertFrameToMessage(img1, timestamp);
 
@@ -1107,43 +1112,43 @@ void CameraDriver::publish_pointcloud(const pointcloud_t &pointcloud, const uint
   RCLCPP_DEBUG(get_logger(), "Decoded point cloud with %u points", pointcloud.count);
 }
 
-void CameraDriver::publish_matches(const matches_t &matches, const uint64_t &timestamp) {
-  auto ts = convertTimestamp(timestamp);
-
-  size_t offset = 0;
-  sensor_msgs::msg::PointCloud2 msg;
-  for(auto name : {"x", "y", "x1", "y1", "d2", "d1", "n2", "n1"}) {
-    sensor_msgs::msg::PointField field;
-    field.name = name;
-    field.offset = offset; // Assuming 'x' is the first field, so offset is 0
-    field.datatype = sensor_msgs::msg::PointField::UINT16;
-    field.count = 1; // Typically, each coordinate is just one element
-    offset+=sizeof(uint16_t);
-    // Define fields
-    msg.fields.push_back(field);
-  }
-  assert(offset == sizeof(hamat_matches_8xu16));
-  msg.height = 1;  // If your cloud is unordered, height is 1
-  msg.width = validMatches(matches);
-  // Point step is the size of a point in bytes
-  msg.point_step = offset;
-  msg.row_step = msg.point_step * msg.width; // Row step is point step times the width
-  msg.is_dense = false;  // If there are no invalid (NaN, Inf) points, set to true
-  msg.data.resize(msg.row_step * msg.height);
-
-  size_t valid_out = 0;
-  for(size_t i = 0; i < matches.count; i++) {
-    if(matches.points[i].x != matches.unmatched) {
-      std::memcpy(&msg.data[valid_out * msg.point_step], &matches.points[i], offset);
-      valid_out++;
-    }
-  }
-  msg.header.frame_id = this->get_parameter("frame_id").as_string();
-  msg.header.stamp.sec = ts.first;
-  msg.header.stamp.nanosec = ts.second;
-  m_matches->publish(msg);
-  RCLCPP_DEBUG(get_logger(), "Decoded %lu valid matches", valid_out);
-}
+//void CameraDriver::publish_matches(const matches_t &matches, const uint64_t &timestamp) {
+//  auto ts = convertTimestamp(timestamp);
+//
+//  size_t offset = 0;
+//  sensor_msgs::msg::PointCloud2 msg;
+//  for(auto name : {"x", "y", "x1", "y1", "d2", "d1", "n2", "n1"}) {
+//    sensor_msgs::msg::PointField field;
+//    field.name = name;
+//    field.offset = offset; // Assuming 'x' is the first field, so offset is 0
+//    field.datatype = sensor_msgs::msg::PointField::UINT16;
+//    field.count = 1; // Typically, each coordinate is just one element
+//    offset+=sizeof(uint16_t);
+//    // Define fields
+//    msg.fields.push_back(field);
+//  }
+//  assert(offset == sizeof(hamat_matches_8xu16));
+//  msg.height = 1;  // If your cloud is unordered, height is 1
+//  msg.width = validMatches(matches);
+//  // Point step is the size of a point in bytes
+//  msg.point_step = offset;
+//  msg.row_step = msg.point_step * msg.width; // Row step is point step times the width
+//  msg.is_dense = false;  // If there are no invalid (NaN, Inf) points, set to true
+//  msg.data.resize(msg.row_step * msg.height);
+//
+//  size_t valid_out = 0;
+//  for(size_t i = 0; i < matches.count; i++) {
+//    if(matches.points[i].x != matches.unmatched) {
+//      std::memcpy(&msg.data[valid_out * msg.point_step], &matches.points[i], offset);
+//      valid_out++;
+//    }
+//  }
+//  msg.header.frame_id = this->get_parameter("frame_id").as_string();
+//  msg.header.stamp.sec = ts.first;
+//  msg.header.stamp.nanosec = ts.second;
+//  m_matches->publish(msg);
+//  RCLCPP_DEBUG(get_logger(), "Decoded %lu valid matches", valid_out);
+//}
 
 bool CameraDriver::is_streaming() {
   return !done && m_device != nullptr && m_stream != nullptr && m_stream->IsOpen();
@@ -1270,7 +1275,15 @@ bool CameraDriver::configure_feature_points() {
 
 bool CameraDriver::configure_point_cloud() {
   if(!is_stereo()) {
+    if(get_parameter("sparse_point_cloud").as_bool()) {
+      RCLCPP_ERROR(get_logger(), "Sparse point cloud is only available on Bottlenose Stereo models");
+      return false;
+    }
     return true;
+  }
+  if(!get_parameter("stereo").as_bool()) {
+    RCLCPP_ERROR(get_logger(), "Sparse point cloud is only available when stereo mode is enabled. Please enable the \"stereo\" parameter");
+    return false;
   }
 
   bool enabled = get_parameter("sparse_point_cloud").as_bool();
@@ -1310,11 +1323,12 @@ bool CameraDriver::configure_point_cloud() {
       RCLCPP_ERROR(get_logger(), "Could not configure HAMATOutputFormat");
       return false;
     }
-    // Enable matches chunk for debugging
-    if(!set_chunk("FeatureMatches", enabled)) {
-      RCLCPP_ERROR(get_logger(), "Could not enable feature FeatureMatches chunk");
-      return false;
-    }
+    // FIXME: Disabled until after accuracy via SE-2730 is confirmed
+//    // Enable matches chunk for debugging
+//    if(!set_chunk("FeatureMatches", enabled)) {
+//      RCLCPP_ERROR(get_logger(), "Could not enable feature FeatureMatches chunk");
+//      return false;
+//    }
   }
   RCLCPP_DEBUG_STREAM(get_logger(), "Sparse point cloud configured to " << enabled);
 
