@@ -173,13 +173,13 @@ bool chunkDecodeBoundingBoxes(PvBuffer *buffer, bboxes_t &bboxes);
  */
 bool chunkDecodePointCloud(PvBuffer *buffer, pointcloud_t &pointcloud);
 
-/**
- * Decode matches from image stream, if present.
- * @param buffer Buffer received on GEV interface
- * @param matches Decoded matches
- * @return true if present, false if not present or corrupted.
- */
-bool chunkDecodeMatches(PvBuffer *buffer, matches_t &matches);
+///**
+// * Decode matches from image stream, if present.
+// * @param buffer Buffer received on GEV interface
+// * @param matches Decoded matches
+// * @return true if present, false if not present or corrupted.
+// */
+//bool chunkDecodeMatches(PvBuffer *buffer, matches_t &matches);
 
 /**
  * Count the number of valid matches in the matches structure.
