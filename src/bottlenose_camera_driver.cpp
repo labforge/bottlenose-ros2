@@ -1602,6 +1602,8 @@ bool CameraDriver::ftp_upload(const std::string &ftp_url, const std::string &fil
     curl_easy_setopt(curl, CURLOPT_READDATA, hd_src);
     curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, fsize);
     curl_easy_setopt(curl, CURLOPT_READFUNCTION, curlReadCallback);
+    // Disable the use of a proxy. Important for ensuring the connection is direct to the IP.
+    curl_easy_setopt(curl, CURLOPT_PROXY, "");
     curl_easy_setopt(curl, CURLOPT_FTPPORT, "-"); // Use "-" to enable active mode, PASV not supported by camera
 
     // Perform the upload
