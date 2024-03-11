@@ -91,8 +91,8 @@ const parameter_t bottlenose_parameters[] = {
   {"right_camera_calibration_file", rclcpp::ParameterValue("")},
 
   /* Keypoint parameters */
-  {"features_max",  rclcpp::ParameterValue(1000)},
-  {"features_threshold",  rclcpp::ParameterValue(100)},
+  {"features_max",  rclcpp::ParameterValue(65534)},
+  {"features_threshold",  rclcpp::ParameterValue(3)},
   {"features_nms",  rclcpp::ParameterValue(false)},
   {"gftt_detector", rclcpp::ParameterValue("harris")},
   {"features_quality", rclcpp::ParameterValue(500)},
@@ -100,15 +100,15 @@ const parameter_t bottlenose_parameters[] = {
   {"features_harrisk", rclcpp::ParameterValue(0.0)},
 
   /* Pointcloud parameters */
-  {"AKAZELength", rclcpp::ParameterValue(120)},
+  {"AKAZELength", rclcpp::ParameterValue(486)},
   {"AKAZEWindow", rclcpp::ParameterValue(20)},
   {"HAMATXOffset", rclcpp::ParameterValue(0)},
   {"HAMATYOffset", rclcpp::ParameterValue(0)},
-  {"HAMATRect1X", rclcpp::ParameterValue(500)},
-  {"HAMATRect1Y", rclcpp::ParameterValue(4)},
-  {"HAMATRect2X", rclcpp::ParameterValue(500)},
-  {"HAMATRect2Y", rclcpp::ParameterValue(4)},
-  {"HAMATMinThreshold", rclcpp::ParameterValue(500)},
+  {"HAMATRect1X", rclcpp::ParameterValue(1900)},
+  {"HAMATRect1Y", rclcpp::ParameterValue(2)},
+  {"HAMATRect2X", rclcpp::ParameterValue(1900)},
+  {"HAMATRect2Y", rclcpp::ParameterValue(2)},
+  {"HAMATMinThreshold", rclcpp::ParameterValue(60)},
   {"HAMATRatioThreshold",rclcpp::ParameterValue(1023)},
 
   /* DNN parameters */
