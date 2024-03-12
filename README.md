@@ -125,8 +125,8 @@ ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p ma
 | ```autoExposureEnable```                 | Enable auto exposure and auto gain control                                             | ```false```                      |                     |
 | ```autoExposureLuminanceTarget```        | Luminance target for exposure control ```[0, 65535]```                                 | ```16384```                      |                     |
 | **Feature Point Controls**               |                                                                                        |                                  |                     |
-| ```features_max```                       | Maximum number of features to detect                                                   | ```1000```                       |                     |
-| ```features_threshold```                 | Threshold for feature detection ```[0,255]``` (***fast9 only***)                       | ```100```                        |                     |
+| ```features_max```                       | Maximum number of features to detect                                                   | ```65534```                      |                     |
+| ```features_threshold```                 | Threshold for feature detection ```[0,255]``` (***fast9 only***)                       | ```3```                          |                     |
 | ```features_nms```                       | Use Non-maximum suppression (***fast9 only***)                                         | ```false```                      |                     |
 | ```gftt_detector```                      | Good Features to Track (GFTT) detector (```harris``` or ```eigen```) (***gftt only***) | ```harris```                     |                     |
 | ```features_quality```                   | Quality level for GFTT detector ```[0,1023]``` (***gftt only***)                       | ```500```                        |                     |
@@ -137,15 +137,15 @@ ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args -p ma
 | ```DNNNonMaxSuppression```               | Set the non-maximum suppression value for bounding boxes.                              | ```0.45```                       |                     |
 | ```DNNConfidence```                      | Set confidence threshold of the detector.                                              | ```0.2```                        |                     |
 | **Sparse Point Cloud Controls**          |                                                                                        |                                  |                     |
-| ```AKAZELength```                        | Length of AKAZE descriptor in bits (```120, 128, 256, 486```)                          | ```120```                        |                     |
+| ```AKAZELength```                        | Length of AKAZE descriptor in bits (```120, 128, 256, 486```)                          | ```486```                        |                     |
 | ```AKAZEWindow```                        | Window size of AKAZE descriptor ```XX``` for ```XX x XX``` window (20, 30, 40, 60, 80) | ```20```                         |                     |
 | ```HAMATXOffset```                       | Offset in number of pixels from source x to reference center x                         | ```0```                          |                     |
 | ```HAMATYOffset```                       | Offset in number of pixels from source x to reference center y                         | ```0```                          |                     |
-| ```HAMATRect1X```                        | First rectangle range in x direction in terms of number of pixels                      | ```64```                         |                     |
-| ```HAMATRect1Y```                        | First rectangle range in y direction in terms of number of pixels                      | ```64```                         |                     |
-| ```HAMATRect2X```                        | Second rectangle range in x direction in terms of number of pixels                     | ```128```                        |                     |
-| ```HAMATRect2Y```                        | Second rectangle range in y direction in terms of number of pixels                     | ```128```                        |                     |
-| ```HAMATMinThreshold```                  | Minimum hamming distance threshold.                                                    | ```500```                        |                     |
+| ```HAMATRect1X```                        | First rectangle range in x direction in terms of number of pixels                      | ```1900```                       |                     |
+| ```HAMATRect1Y```                        | First rectangle range in y direction in terms of number of pixels                      | ```2```                          |                     |
+| ```HAMATRect2X```                        | Second rectangle range in x direction in terms of number of pixels                     | ```1900```                       |                     |
+| ```HAMATRect2Y```                        | Second rectangle range in y direction in terms of number of pixels                     | ```2```                          |                     |
+| ```HAMATMinThreshold```                  | Minimum hamming distance threshold.                                                    | ```60```                         |                     |
 | ```HAMATRatioThreshold```                | Minimum to next minimum hamming distance ratio threshold.                              | ```1023```                       |                     |
 | **GigE Vision Stream Parameters**        |                                                                                        |                                  |                     |
 | ```AnswerTimeout```                      | Time the GigE Vision Device can take for command response.                             | ```1000```                       |                     |
@@ -186,7 +186,6 @@ bottlenose_camera_driver
  +-- features         : ImageMarker2D array of detected features in left (image_color) or mono sensor
  +-- features_1       : ImageMarker2D array of detected features in right (image_color_1) sensor (Bottlenose Stereo only)
  +-- pointcloud       : PointCloud2 messages of sparse triangulated feature points (Bottlenose Stereo only)
- +-- matches          : PointCloud2 messages of sensor 0 to sensor 1 match coordinates with quality metrics (Bottlenose Stereo only)
 ```
 
 ### On-Camera Rectification and Undistortion
@@ -199,14 +198,15 @@ to properly undistort and rectify images. We provide sample calibration files fo
  * [Left sensor (0) for Bottlenose Stereo](config/left_camera.yaml)
  * [Right sensor (1) for Bottlenose Stereo](config/right_camera.yaml)
 
-Further Bottlenose supports offsetting the readout pixel start position in each sensor. This is useful for stereo setups
-where the sensors are not perfectly aligned. The following parameters can be used to offset the readout position:
+Further Bottlenose supports offsetting the readout pixel start position in each sensor. This is **mandatory** for stereo 
+functions such as sparse point-cloud output. The following parameters can be used to offset the readout position:
  * ```OffsetX``` and ```OffsetY``` for the left sensor (0)
  * ```OffsetX1``` and ```OffsetY1``` for the right sensor (1) (Stereo only)
 
 If you used non-default offsets during your calibration process you have to set these parameters to the same
-values as during your calibration.
-If you do not wish to undistort or rectify the images, you can erase these files from your installation.
+values as during your calibration. Please see here how to [calibrate Bottlenose](https://docs.labforge.ca/docs/calibration).
+
+If you do not wish to undistort or rectify the images, you can erase the calibration files from your installation.
 
 **Note: For using the pointcloud feature or dense depth you have to have a valid calibration file that matches your setup.** 
 
@@ -236,7 +236,8 @@ ros2 run bottlenose_camera_driver bottlenose_camera_driver_node --ros-args \
     -p features_threshold:=10
     -p sparse_point_cloud:=true \
     -p AKAZELength:=486 \
-    -p AKAZEWindow:=20
+    -p AKAZEWindow:=20 \
+    -p OffsetY1:=<value used during calibration> 
 ```
  * Enable stereo processing
  * Enable sparse point cloud output
